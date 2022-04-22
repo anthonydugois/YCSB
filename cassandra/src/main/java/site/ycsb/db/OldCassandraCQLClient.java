@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2020 YCSB contributors. All rights reserved.
+/**
+ * Copyright (c) 2013-2015 YCSB contributors. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -12,14 +12,27 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License. See accompanying LICENSE file.
- */
-package site.ycsb.db.scylla;
+ *
+ * Submitted by Chrisjan Matser on 10/11/2010.
+ *//*
 
-import com.datastax.driver.core.*;
-import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
-import com.datastax.driver.core.policies.LoadBalancingPolicy;
-import com.datastax.driver.core.policies.TokenAwarePolicy;
-import com.datastax.driver.core.querybuilder.*;
+package site.ycsb.db;
+
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ColumnDefinitions;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.Host;
+import com.datastax.driver.core.HostDistance;
+import com.datastax.driver.core.Metadata;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.querybuilder.Insert;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.driver.core.querybuilder.Select;
+import com.datastax.driver.core.querybuilder.Update;
 import site.ycsb.ByteArrayByteIterator;
 import site.ycsb.ByteIterator;
 import site.ycsb.DB;
@@ -41,73 +54,90 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
+*/
 /**
- * Scylla DB implementation.
- */
-public class ScyllaCQLClient extends DB {
+ * Cassandra 2.x CQL client.
+ *
+ * See {@code cassandra2/README.md} for details.
+ *
+ * @author cmatser
+ *//*
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ScyllaCQLClient.class);
+public class CassandraCQLClient extends DB {
+
+  private static Logger logger = LoggerFactory.getLogger(CassandraCQLClient.class);
 
   private static Cluster cluster = null;
   private static Session session = null;
 
-  private static final ConcurrentMap<Set<String>, PreparedStatement> READ_STMTS = new ConcurrentHashMap<>();
-  private static final ConcurrentMap<Set<String>, PreparedStatement> SCAN_STMTS = new ConcurrentHashMap<>();
-  private static final ConcurrentMap<Set<String>, PreparedStatement> INSERT_STMTS = new ConcurrentHashMap<>();
-  private static final ConcurrentMap<Set<String>, PreparedStatement> UPDATE_STMTS = new ConcurrentHashMap<>();
-  private static final AtomicReference<PreparedStatement> READ_ALL_STMT = new AtomicReference<>();
-  private static final AtomicReference<PreparedStatement> SCAN_ALL_STMT = new AtomicReference<>();
-  private static final AtomicReference<PreparedStatement> DELETE_STMT = new AtomicReference<>();
+  private static ConcurrentMap<Set<String>, PreparedStatement> readStmts =
+      new ConcurrentHashMap<Set<String>, PreparedStatement>();
+  private static ConcurrentMap<Set<String>, PreparedStatement> scanStmts =
+      new ConcurrentHashMap<Set<String>, PreparedStatement>();
+  private static ConcurrentMap<Set<String>, PreparedStatement> insertStmts =
+      new ConcurrentHashMap<Set<String>, PreparedStatement>();
+  private static ConcurrentMap<Set<String>, PreparedStatement> updateStmts =
+      new ConcurrentHashMap<Set<String>, PreparedStatement>();
+  private static AtomicReference<PreparedStatement> readAllStmt =
+      new AtomicReference<PreparedStatement>();
+  private static AtomicReference<PreparedStatement> scanAllStmt =
+      new AtomicReference<PreparedStatement>();
+  private static AtomicReference<PreparedStatement> deleteStmt =
+      new AtomicReference<PreparedStatement>();
 
   private static ConsistencyLevel readConsistencyLevel = ConsistencyLevel.QUORUM;
   private static ConsistencyLevel writeConsistencyLevel = ConsistencyLevel.QUORUM;
 
-  private static boolean lwt = false;
-
   public static final String YCSB_KEY = "y_id";
-  public static final String KEYSPACE_PROPERTY = "scylla.keyspace";
+  public static final String KEYSPACE_PROPERTY = "cassandra.keyspace";
   public static final String KEYSPACE_PROPERTY_DEFAULT = "ycsb";
-  public static final String USERNAME_PROPERTY = "scylla.username";
-  public static final String PASSWORD_PROPERTY = "scylla.password";
+  public static final String USERNAME_PROPERTY = "cassandra.username";
+  public static final String PASSWORD_PROPERTY = "cassandra.password";
 
-  public static final String HOSTS_PROPERTY = "scylla.hosts";
-  public static final String PORT_PROPERTY = "scylla.port";
+  public static final String HOSTS_PROPERTY = "hosts";
+  public static final String PORT_PROPERTY = "port";
   public static final String PORT_PROPERTY_DEFAULT = "9042";
 
-  public static final String READ_CONSISTENCY_LEVEL_PROPERTY = "scylla.readconsistencylevel";
+  public static final String READ_CONSISTENCY_LEVEL_PROPERTY =
+      "cassandra.readconsistencylevel";
   public static final String READ_CONSISTENCY_LEVEL_PROPERTY_DEFAULT = readConsistencyLevel.name();
-  public static final String WRITE_CONSISTENCY_LEVEL_PROPERTY = "scylla.writeconsistencylevel";
+  public static final String WRITE_CONSISTENCY_LEVEL_PROPERTY =
+      "cassandra.writeconsistencylevel";
   public static final String WRITE_CONSISTENCY_LEVEL_PROPERTY_DEFAULT = writeConsistencyLevel.name();
 
-  public static final String MAX_CONNECTIONS_PROPERTY = "scylla.maxconnections";
-  public static final String CORE_CONNECTIONS_PROPERTY = "scylla.coreconnections";
-  public static final String CONNECT_TIMEOUT_MILLIS_PROPERTY = "scylla.connecttimeoutmillis";
-  public static final String READ_TIMEOUT_MILLIS_PROPERTY = "scylla.readtimeoutmillis";
+  public static final String MAX_CONNECTIONS_PROPERTY =
+      "cassandra.maxconnections";
+  public static final String CORE_CONNECTIONS_PROPERTY =
+      "cassandra.coreconnections";
+  public static final String CONNECT_TIMEOUT_MILLIS_PROPERTY =
+      "cassandra.connecttimeoutmillis";
+  public static final String READ_TIMEOUT_MILLIS_PROPERTY =
+      "cassandra.readtimeoutmillis";
 
-  public static final String SCYLLA_LWT = "scylla.lwt";
-
-  public static final String TOKEN_AWARE_LOCAL_DC = "scylla.local_dc";
-
-  public static final String TRACING_PROPERTY = "scylla.tracing";
+  public static final String TRACING_PROPERTY = "cassandra.tracing";
   public static final String TRACING_PROPERTY_DEFAULT = "false";
 
-  public static final String USE_SSL_CONNECTION = "scylla.useSSL";
+  public static final String USE_SSL_CONNECTION = "cassandra.useSSL";
   private static final String DEFAULT_USE_SSL_CONNECTION = "false";
 
-  /**
+  */
+/**
    * Count the number of times initialized to teardown on the last
    * {@link #cleanup()}.
-   */
+   *//*
+
   private static final AtomicInteger INIT_COUNT = new AtomicInteger(0);
 
   private static boolean debug = false;
 
   private static boolean trace = false;
-
-  /**
+  
+  */
+/**
    * Initialize any state for this DB. Called once per DB instance; there is one
    * DB instance per client thread.
-   */
+   *//*
+
   @Override
   public void init() throws DBException {
 
@@ -125,12 +155,15 @@ public class ScyllaCQLClient extends DB {
 
       try {
 
-        debug = Boolean.parseBoolean(getProperties().getProperty("debug", "false"));
-        trace = Boolean.parseBoolean(getProperties().getProperty(TRACING_PROPERTY, TRACING_PROPERTY_DEFAULT));
+        debug =
+            Boolean.parseBoolean(getProperties().getProperty("debug", "false"));
+        trace = Boolean.valueOf(getProperties().getProperty(TRACING_PROPERTY, TRACING_PROPERTY_DEFAULT));
 
         String host = getProperties().getProperty(HOSTS_PROPERTY);
         if (host == null) {
-          throw new DBException(String.format("Required property \"%s\" missing for scyllaCQLClient", HOSTS_PROPERTY));
+          throw new DBException(String.format(
+              "Required property \"%s\" missing for CassandraCQLClient",
+              HOSTS_PROPERTY));
         }
         String[] hosts = host.split(",");
         String port = getProperties().getProperty(PORT_PROPERTY, PORT_PROPERTY_DEFAULT);
@@ -138,138 +171,112 @@ public class ScyllaCQLClient extends DB {
         String username = getProperties().getProperty(USERNAME_PROPERTY);
         String password = getProperties().getProperty(PASSWORD_PROPERTY);
 
-        String keyspace = getProperties().getProperty(KEYSPACE_PROPERTY, KEYSPACE_PROPERTY_DEFAULT);
+        String keyspace = getProperties().getProperty(KEYSPACE_PROPERTY,
+            KEYSPACE_PROPERTY_DEFAULT);
 
         readConsistencyLevel = ConsistencyLevel.valueOf(
-            getProperties().getProperty(READ_CONSISTENCY_LEVEL_PROPERTY, READ_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
+            getProperties().getProperty(READ_CONSISTENCY_LEVEL_PROPERTY,
+                READ_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
         writeConsistencyLevel = ConsistencyLevel.valueOf(
-            getProperties().getProperty(WRITE_CONSISTENCY_LEVEL_PROPERTY, WRITE_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
+            getProperties().getProperty(WRITE_CONSISTENCY_LEVEL_PROPERTY,
+                WRITE_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
 
-        boolean useSSL = Boolean.parseBoolean(
-            getProperties().getProperty(USE_SSL_CONNECTION, DEFAULT_USE_SSL_CONNECTION));
+        Boolean useSSL = Boolean.parseBoolean(getProperties().getProperty(USE_SSL_CONNECTION,
+            DEFAULT_USE_SSL_CONNECTION));
 
-        Cluster.Builder builder;
         if ((username != null) && !username.isEmpty()) {
-          builder = Cluster.builder().withCredentials(username, password)
-              .addContactPoints(hosts).withPort(Integer.parseInt(port));
+          Cluster.Builder clusterBuilder = Cluster.builder().withCredentials(username, password)
+              .withPort(Integer.valueOf(port)).addContactPoints(hosts);
           if (useSSL) {
-            builder = builder.withSSL();
-          }
+            clusterBuilder = clusterBuilder.withSSL();
+          } 
+          cluster = clusterBuilder.build();
         } else {
-          builder = Cluster.builder().withPort(Integer.parseInt(port))
-              .addContactPoints(hosts);
+          cluster = Cluster.builder().withPort(Integer.valueOf(port))
+              .addContactPoints(hosts).build();
         }
-
-        final String localDC = getProperties().getProperty(TOKEN_AWARE_LOCAL_DC);
-        if (localDC != null && !localDC.isEmpty()) {
-          final LoadBalancingPolicy local = DCAwareRoundRobinPolicy.builder().withLocalDc(localDC).build();
-          final TokenAwarePolicy tokenAware = new TokenAwarePolicy(local);
-          builder = builder.withLoadBalancingPolicy(tokenAware);
-
-          LOGGER.info("Using local datacenter with token awareness: {}\n", localDC);
-
-          // If was not overridden explicitly, set LOCAL_QUORUM
-          if (getProperties().getProperty(READ_CONSISTENCY_LEVEL_PROPERTY) == null) {
-            readConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM;
-          }
-
-          if (getProperties().getProperty(WRITE_CONSISTENCY_LEVEL_PROPERTY) == null) {
-            writeConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM;
-          }
-        }
-
-        cluster = builder.build();
 
         String maxConnections = getProperties().getProperty(
             MAX_CONNECTIONS_PROPERTY);
         if (maxConnections != null) {
           cluster.getConfiguration().getPoolingOptions()
-              .setMaxConnectionsPerHost(HostDistance.LOCAL, Integer.parseInt(maxConnections));
+              .setMaxConnectionsPerHost(HostDistance.LOCAL,
+              Integer.valueOf(maxConnections));
         }
 
         String coreConnections = getProperties().getProperty(
             CORE_CONNECTIONS_PROPERTY);
         if (coreConnections != null) {
           cluster.getConfiguration().getPoolingOptions()
-              .setCoreConnectionsPerHost(HostDistance.LOCAL, Integer.parseInt(coreConnections));
+              .setCoreConnectionsPerHost(HostDistance.LOCAL,
+              Integer.valueOf(coreConnections));
         }
 
-        String connectTimeoutMillis = getProperties().getProperty(
+        String connectTimoutMillis = getProperties().getProperty(
             CONNECT_TIMEOUT_MILLIS_PROPERTY);
-        if (connectTimeoutMillis != null) {
+        if (connectTimoutMillis != null) {
           cluster.getConfiguration().getSocketOptions()
-              .setConnectTimeoutMillis(Integer.parseInt(connectTimeoutMillis));
+              .setConnectTimeoutMillis(Integer.valueOf(connectTimoutMillis));
         }
 
-        String readTimeoutMillis = getProperties().getProperty(
+        String readTimoutMillis = getProperties().getProperty(
             READ_TIMEOUT_MILLIS_PROPERTY);
-        if (readTimeoutMillis != null) {
+        if (readTimoutMillis != null) {
           cluster.getConfiguration().getSocketOptions()
-              .setReadTimeoutMillis(Integer.parseInt(readTimeoutMillis));
+              .setReadTimeoutMillis(Integer.valueOf(readTimoutMillis));
         }
 
         Metadata metadata = cluster.getMetadata();
-        LOGGER.info("Connected to cluster: {}\n", metadata.getClusterName());
+        logger.info("Connected to cluster: {}\n",
+            metadata.getClusterName());
 
         for (Host discoveredHost : metadata.getAllHosts()) {
-          LOGGER.info("Datacenter: {}; Host: {}; Rack: {}\n",
-              discoveredHost.getDatacenter(), discoveredHost.getEndPoint().resolve().getAddress(),
+          logger.info("Datacenter: {}; Host: {}; Rack: {}\n",
+              discoveredHost.getDatacenter(), discoveredHost.getAddress(),
               discoveredHost.getRack());
         }
 
         session = cluster.connect(keyspace);
 
-        if (Boolean.parseBoolean(getProperties().getProperty(SCYLLA_LWT, Boolean.toString(lwt)))) {
-          LOGGER.info("Using LWT\n");
-          lwt = true;
-          readConsistencyLevel = ConsistencyLevel.SERIAL;
-          writeConsistencyLevel = ConsistencyLevel.ANY;
-        } else {
-          LOGGER.info("Not using LWT\n");
-        }
-
-        LOGGER.info("Read consistency: {}, Write consistency: {}\n",
-            readConsistencyLevel.name(),
-            writeConsistencyLevel.name());
       } catch (Exception e) {
         throw new DBException(e);
       }
     } // synchronized
   }
 
-  /**
+  */
+/**
    * Cleanup any state for this DB. Called once per DB instance; there is one DB
    * instance per client thread.
-   */
+   *//*
+
   @Override
   public void cleanup() throws DBException {
     synchronized (INIT_COUNT) {
       final int curInitCount = INIT_COUNT.decrementAndGet();
       if (curInitCount <= 0) {
-        READ_STMTS.clear();
-        SCAN_STMTS.clear();
-        INSERT_STMTS.clear();
-        UPDATE_STMTS.clear();
-        READ_ALL_STMT.set(null);
-        SCAN_ALL_STMT.set(null);
-        DELETE_STMT.set(null);
-        if (session != null) {
-          session.close();
-          session = null;
-        }
-        if (cluster != null) {
-          cluster.close();
-          cluster = null;
-        }
+        readStmts.clear();
+        scanStmts.clear();
+        insertStmts.clear();
+        updateStmts.clear();
+        readAllStmt.set(null);
+        scanAllStmt.set(null);
+        deleteStmt.set(null);
+        session.close();
+        cluster.close();
+        cluster = null;
+        session = null;
       }
       if (curInitCount < 0) {
         // This should never happen.
-        throw new DBException(String.format("initCount is negative: %d", curInitCount));
+        throw new DBException(
+            String.format("initCount is negative: %d", curInitCount));
       }
     }
   }
 
-  /**
+  */
+/**
    * Read a record from the database. Each field/value pair from the result will
    * be stored in a HashMap.
    *
@@ -282,12 +289,13 @@ public class ScyllaCQLClient extends DB {
    * @param result
    *          A HashMap of field/value pairs for the result
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   @Override
   public Status read(String table, String key, Set<String> fields,
-                     Map<String, ByteIterator> result) {
+      Map<String, ByteIterator> result) {
     try {
-      PreparedStatement stmt = (fields == null) ? READ_ALL_STMT.get() : READ_STMTS.get(fields);
+      PreparedStatement stmt = (fields == null) ? readAllStmt.get() : readStmts.get(fields);
 
       // Prepare statement on demand
       if (stmt == null) {
@@ -303,23 +311,23 @@ public class ScyllaCQLClient extends DB {
         }
 
         stmt = session.prepare(selectBuilder.from(table)
-            .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()))
-            .limit(1));
+                               .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()))
+                               .limit(1));
         stmt.setConsistencyLevel(readConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
         PreparedStatement prevStmt = (fields == null) ?
-            READ_ALL_STMT.getAndSet(stmt) :
-            READ_STMTS.putIfAbsent(new HashSet<>(fields), stmt);
+                                     readAllStmt.getAndSet(stmt) :
+                                     readStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
       }
 
-      LOGGER.debug(stmt.getQueryString());
-      LOGGER.debug("key = {}", key);
+      logger.debug(stmt.getQueryString());
+      logger.debug("key = {}", key);
 
       ResultSet rs = session.execute(stmt.bind(key));
 
@@ -343,17 +351,18 @@ public class ScyllaCQLClient extends DB {
       return Status.OK;
 
     } catch (Exception e) {
-      LOGGER.error(MessageFormatter.format("Error reading key: {}", key).getMessage(), e);
+      logger.error(MessageFormatter.format("Error reading key: {}", key).getMessage(), e);
       return Status.ERROR;
     }
 
   }
 
-  /**
+  */
+/**
    * Perform a range scan for a set of records in the database. Each field/value
    * pair from the result will be stored in a HashMap.
    *
-   * scylla CQL uses "token" method for range scan which doesn't always yield
+   * Cassandra CQL uses "token" method for range scan which doesn't always yield
    * intuitive results.
    *
    * @param table
@@ -368,13 +377,14 @@ public class ScyllaCQLClient extends DB {
    *          A Vector of HashMaps, where each HashMap is a set field/value
    *          pairs for one record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   @Override
   public Status scan(String table, String startkey, int recordcount,
-                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
+      Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
 
     try {
-      PreparedStatement stmt = (fields == null) ? SCAN_ALL_STMT.get() : SCAN_STMTS.get(fields);
+      PreparedStatement stmt = (fields == null) ? scanAllStmt.get() : scanStmts.get(fields);
 
       // Prepare statement on demand
       if (stmt == null) {
@@ -394,33 +404,40 @@ public class ScyllaCQLClient extends DB {
         // The statement builder is not setup right for tokens.
         // So, we need to build it manually.
         String initialStmt = selectStmt.toString();
-        String scanStmt = initialStmt.substring(0, initialStmt.length() - 1) +
-            " WHERE " + QueryBuilder.token(YCSB_KEY) +
-            " >= token(" + QueryBuilder.bindMarker() + ")" +
-            " LIMIT " + QueryBuilder.bindMarker();
-        stmt = session.prepare(scanStmt);
+        StringBuilder scanStmt = new StringBuilder();
+        scanStmt.append(initialStmt.substring(0, initialStmt.length() - 1));
+        scanStmt.append(" WHERE ");
+        scanStmt.append(QueryBuilder.token(YCSB_KEY));
+        scanStmt.append(" >= ");
+        scanStmt.append("token(");
+        scanStmt.append(QueryBuilder.bindMarker());
+        scanStmt.append(")");
+        scanStmt.append(" LIMIT ");
+        scanStmt.append(QueryBuilder.bindMarker());
+
+        stmt = session.prepare(scanStmt.toString());
         stmt.setConsistencyLevel(readConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
         PreparedStatement prevStmt = (fields == null) ?
-            SCAN_ALL_STMT.getAndSet(stmt) :
-            SCAN_STMTS.putIfAbsent(new HashSet<>(fields), stmt);
+                                     scanAllStmt.getAndSet(stmt) :
+                                     scanStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
       }
 
-      LOGGER.debug(stmt.getQueryString());
-      LOGGER.debug("startKey = {}, recordcount = {}", startkey, recordcount);
+      logger.debug(stmt.getQueryString());
+      logger.debug("startKey = {}, recordcount = {}", startkey, recordcount);
 
-      ResultSet rs = session.execute(stmt.bind(startkey, recordcount));
+      ResultSet rs = session.execute(stmt.bind(startkey, Integer.valueOf(recordcount)));
 
       HashMap<String, ByteIterator> tuple;
       while (!rs.isExhausted()) {
         Row row = rs.one();
-        tuple = new HashMap<>();
+        tuple = new HashMap<String, ByteIterator>();
 
         ColumnDefinitions cd = row.getColumnDefinitions();
 
@@ -439,14 +456,15 @@ public class ScyllaCQLClient extends DB {
       return Status.OK;
 
     } catch (Exception e) {
-      LOGGER.error(
+      logger.error(
           MessageFormatter.format("Error scanning with startkey: {}", startkey).getMessage(), e);
       return Status.ERROR;
     }
 
   }
 
-  /**
+  */
+/**
    * Update a record in the database. Any field/value pairs in the specified
    * values HashMap will be written into the record with the specified record
    * key, overwriting any existing values with the same field name.
@@ -458,13 +476,14 @@ public class ScyllaCQLClient extends DB {
    * @param values
    *          A HashMap of field/value pairs to update in the record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   @Override
   public Status update(String table, String key, Map<String, ByteIterator> values) {
 
     try {
       Set<String> fields = values.keySet();
-      PreparedStatement stmt = UPDATE_STMTS.get(fields);
+      PreparedStatement stmt = updateStmts.get(fields);
 
       // Prepare statement on demand
       if (stmt == null) {
@@ -478,27 +497,23 @@ public class ScyllaCQLClient extends DB {
         // Add key
         updateStmt.where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()));
 
-        if (lwt) {
-          updateStmt.where().ifExists();
-        }
-
         stmt = session.prepare(updateStmt);
         stmt.setConsistencyLevel(writeConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
-        PreparedStatement prevStmt = UPDATE_STMTS.putIfAbsent(new HashSet<>(fields), stmt);
+        PreparedStatement prevStmt = updateStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
       }
 
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug(stmt.getQueryString());
-        LOGGER.debug("key = {}", key);
+      if (logger.isDebugEnabled()) {
+        logger.debug(stmt.getQueryString());
+        logger.debug("key = {}", key);
         for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-          LOGGER.debug("{} = {}", entry.getKey(), entry.getValue());
+          logger.debug("{} = {}", entry.getKey(), entry.getValue());
         }
       }
 
@@ -516,13 +531,14 @@ public class ScyllaCQLClient extends DB {
 
       return Status.OK;
     } catch (Exception e) {
-      LOGGER.error(MessageFormatter.format("Error updating key: {}", key).getMessage(), e);
+      logger.error(MessageFormatter.format("Error updating key: {}", key).getMessage(), e);
     }
 
     return Status.ERROR;
   }
 
-  /**
+  */
+/**
    * Insert a record in the database. Any field/value pairs in the specified
    * values HashMap will be written into the record with the specified record
    * key.
@@ -534,13 +550,14 @@ public class ScyllaCQLClient extends DB {
    * @param values
    *          A HashMap of field/value pairs to insert in the record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   @Override
   public Status insert(String table, String key, Map<String, ByteIterator> values) {
 
     try {
       Set<String> fields = values.keySet();
-      PreparedStatement stmt = INSERT_STMTS.get(fields);
+      PreparedStatement stmt = insertStmts.get(fields);
 
       // Prepare statement on demand
       if (stmt == null) {
@@ -554,27 +571,23 @@ public class ScyllaCQLClient extends DB {
           insertStmt.value(field, QueryBuilder.bindMarker());
         }
 
-        if (lwt) {
-          insertStmt.ifNotExists();
-        }
-
         stmt = session.prepare(insertStmt);
         stmt.setConsistencyLevel(writeConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
-        PreparedStatement prevStmt = INSERT_STMTS.putIfAbsent(new HashSet<>(fields), stmt);
+        PreparedStatement prevStmt = insertStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
       }
 
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug(stmt.getQueryString());
-        LOGGER.debug("key = {}", key);
+      if (logger.isDebugEnabled()) {
+        logger.debug(stmt.getQueryString());
+        logger.debug("key = {}", key);
         for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-          LOGGER.debug("{} = {}", entry.getKey(), entry.getValue());
+          logger.debug("{} = {}", entry.getKey(), entry.getValue());
         }
       }
 
@@ -591,13 +604,14 @@ public class ScyllaCQLClient extends DB {
 
       return Status.OK;
     } catch (Exception e) {
-      LOGGER.error(MessageFormatter.format("Error inserting key: {}", key).getMessage(), e);
+      logger.error(MessageFormatter.format("Error inserting key: {}", key).getMessage(), e);
     }
 
     return Status.ERROR;
   }
 
-  /**
+  */
+/**
    * Delete a record from the database.
    *
    * @param table
@@ -605,45 +619,41 @@ public class ScyllaCQLClient extends DB {
    * @param key
    *          The record key of the record to delete.
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   @Override
   public Status delete(String table, String key) {
 
     try {
-      PreparedStatement stmt = DELETE_STMT.get();
+      PreparedStatement stmt = deleteStmt.get();
 
       // Prepare statement on demand
       if (stmt == null) {
-        Delete s = QueryBuilder.delete().from(table);
-        s.where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()));
-
-        if (lwt) {
-          s.ifExists();
-        }
-
-        stmt = session.prepare(s);
+        stmt = session.prepare(QueryBuilder.delete().from(table)
+                               .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker())));
         stmt.setConsistencyLevel(writeConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
-        PreparedStatement prevStmt = DELETE_STMT.getAndSet(stmt);
+        PreparedStatement prevStmt = deleteStmt.getAndSet(stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
       }
 
-      LOGGER.debug(stmt.getQueryString());
-      LOGGER.debug("key = {}", key);
+      logger.debug(stmt.getQueryString());
+      logger.debug("key = {}", key);
 
       session.execute(stmt.bind(key));
 
       return Status.OK;
     } catch (Exception e) {
-      LOGGER.error(MessageFormatter.format("Error deleting key: {}", key).getMessage(), e);
+      logger.error(MessageFormatter.format("Error deleting key: {}", key).getMessage(), e);
     }
 
     return Status.ERROR;
   }
 
 }
+*/

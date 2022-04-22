@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 
 package site.ycsb.db;
 
@@ -51,9 +52,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+*/
 /**
  * Integration tests for the Cassandra client
- */
+ *//*
+
 public class CassandraCQLClientTest {
   // Change the default Cassandra timeout from 10s to 120s for slow CI machines
   private final static long timeout = 120000L;
@@ -239,3 +242,4 @@ public class CassandraCQLClientTest {
     }
   }
 }
+*/
