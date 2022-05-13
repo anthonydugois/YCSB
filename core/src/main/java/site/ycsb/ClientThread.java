@@ -18,7 +18,9 @@
 package site.ycsb;
 
 import site.ycsb.measurements.Measurements;
+import site.ycsb.tracing.TraceInfo;
 
+import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -38,11 +40,13 @@ public class ClientThread implements Runnable {
 	private double targetOpsPerMs;
 	private long targetOpsTickNanos;
 	private int opsDone;
+	private long startTime;
+	private long endTime;
 	private final Measurements measurements;
 	private int threadId;
 	private int threadCount;
 
-	// should we keep this?
+	// should we keep this? probably not
 	private static boolean spinSleep;
 
 	public ClientThread(DB db, boolean transactions, Workload workload, Properties props, int opCount,
@@ -77,17 +81,37 @@ public class ClientThread implements Runnable {
 		return opsDone;
 	}
 
-	@Override
-	public void run() {
+	public long getRuntime() {
+		return endTime - startTime;
+	}
+
+	public void init() {
 		try {
 			db.init();
 		} catch (DBException e) {
 			e.printStackTrace();
 			e.printStackTrace(System.out);
-
-			return;
 		}
+	}
 
+	public void cleanup() {
+		try {
+			//measurements.setIntendedStartTimeNanos(0);
+			db.cleanup();
+		} catch (DBException e) {
+			e.printStackTrace();
+			e.printStackTrace(System.out);
+		} finally {
+			//completeLatch.countDown();
+		}
+	}
+
+	public Collection<TraceInfo> getTraces() {
+		return db.traces();
+	}
+
+	@Override
+	public void run() {
 		Object state;
 
 		try {
@@ -98,6 +122,8 @@ public class ClientThread implements Runnable {
 
 			return;
 		}
+
+		startTime = System.currentTimeMillis();
 
 		// NOTE: Switching to using nanoTime and parkNanos for time management here such that the measurements
 		// and the client thread have the same view on time.
@@ -140,16 +166,7 @@ public class ClientThread implements Runnable {
 			System.exit(0);
 		}
 
-		try {
-			measurements.setIntendedStartTimeNanos(0);
-
-			db.cleanup();
-		} catch (DBException e) {
-			e.printStackTrace();
-			e.printStackTrace(System.out);
-		} finally {
-			completeLatch.countDown();
-		}
+		endTime = System.currentTimeMillis();
 	}
 
 	private static void sleepUntil(long deadline) {
@@ -174,7 +191,7 @@ public class ClientThread implements Runnable {
 	/**
 	 * The total amount of work this thread is still expected to do.
 	 */
-	int remainingOps() {
+	public int remainingOps() {
 		return Math.max(opCount - opsDone, 0);
 	}
 }

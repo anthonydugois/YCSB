@@ -17,11 +17,9 @@
 
 package site.ycsb;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
+import site.ycsb.tracing.TraceInfo;
+
+import java.util.*;
 
 /**
  * A layer for accessing a database to be benchmarked. Each thread in the client
@@ -135,4 +133,6 @@ public abstract class DB {
 	 * @return The result of the operation.
 	 */
 	public abstract Status delete(String table, String key);
+
+	public abstract Collection<TraceInfo> traces();
 }

@@ -153,7 +153,7 @@ public final class Client {
 	public static void main(String[] args) {
 		Properties props = parseArguments(args);
 
-		boolean status = Boolean.parseBoolean(props.getProperty(STATUS_PROPERTY, "false"));
+		//boolean status = Boolean.parseBoolean(props.getProperty(STATUS_PROPERTY, "false"));
 		String label = props.getProperty(LABEL_PROPERTY, "");
 
 		long maxExecutionTime = Integer.parseInt(props.getProperty(MAX_EXECUTION_TIME, "0"));
@@ -183,59 +183,62 @@ public final class Client {
 
 		initWorkload(props, warningThread, workload, tracer);
 
-		System.err.println("Starting test.");
+		// System.err.println("Starting test.");
 
 		final CountDownLatch completeLatch = new CountDownLatch(threadCount);
 		final List<ClientThread> clients = createClients(dbName, props, threadCount, threadTargetPerMs, workload, tracer, completeLatch);
 
-		if (status) {
+		/*if (status) {
 			boolean stdStatus = props.getProperty(Measurements.MEASUREMENT_TYPE_PROPERTY, "").compareTo("timeseries") == 0;
 			int statusIntervalSeconds = Integer.parseInt(props.getProperty("status.interval", "10"));
 			boolean trackJVMStats = props.getProperty(Measurements.MEASUREMENT_TRACK_JVM_PROPERTY, Measurements.MEASUREMENT_TRACK_JVM_PROPERTY_DEFAULT).equals("true");
 
 			statusThread = new StatusThread(completeLatch, clients, label, stdStatus, statusIntervalSeconds, trackJVMStats);
 			statusThread.start();
-		}
+		}*/
 
 		Thread terminator = null;
 
-		long st;
-		long en;
-
 		int opsDone = 0;
+		long startTime;
+		long endTime;
 
 		try (final TraceScope span = tracer.newScope(CLIENT_WORKLOAD_SPAN)) {
-			final Map<Thread, ClientThread> threads = new HashMap<>(threadCount);
+			List<Thread> threads = new ArrayList<>(threadCount);
 
 			for (ClientThread client : clients) {
-				threads.put(new Thread(tracer.wrap(client, "ClientThread")), client);
+				client.init();
+
+				threads.add(new Thread(tracer.wrap(client, "ClientThread")));
 			}
 
-			st = System.currentTimeMillis();
+			startTime = System.currentTimeMillis();
 
-			for (Thread thread : threads.keySet()) {
+			for (Thread thread : threads) {
 				thread.start();
 			}
 
 			if (maxExecutionTime > 0) {
-				terminator = new TerminatorThread(maxExecutionTime, threads.keySet(), workload);
+				terminator = new TerminatorThread(maxExecutionTime, threads, workload);
 				terminator.start();
 			}
 
-			for (Map.Entry<Thread, ClientThread> entry : threads.entrySet()) {
-				Thread thread = entry.getKey();
-				ClientThread client = entry.getValue();
-
+			for (Thread thread : threads) {
 				try {
 					thread.join();
-
-					opsDone += client.getOpsDone();
 				} catch (InterruptedException ignored) {
 					// Ignored
 				}
 			}
 
-			en = System.currentTimeMillis();
+			endTime = System.currentTimeMillis();
+
+			for (ClientThread client : clients) {
+				client.getTraces();
+				client.cleanup();
+
+				opsDone += client.getOpsDone();
+			}
 		}
 
 		try {
@@ -244,7 +247,7 @@ public final class Client {
 					terminator.interrupt();
 				}
 
-				if (status) {
+				/*if (status) {
 					// Wake up status thread if it's asleep
 					statusThread.interrupt();
 
@@ -254,7 +257,7 @@ public final class Client {
 					} catch (InterruptedException ignored) {
 						// Ignored
 					}
-				}
+				}*/
 
 				workload.cleanup();
 			}
@@ -267,7 +270,7 @@ public final class Client {
 
 		try {
 			try (final TraceScope span = tracer.newScope(CLIENT_EXPORT_MEASUREMENTS_SPAN)) {
-				exportMeasurements(props, opsDone, en - st);
+				exportMeasurements(props, opsDone, endTime - startTime);
 			}
 		} catch (IOException e) {
 			System.err.println("Could not export measurements, error: " + e.getMessage());
@@ -475,7 +478,7 @@ public final class Client {
 	private static Workload getWorkload(Properties props) {
 		ClassLoader classLoader = Client.class.getClassLoader();
 
-		try {
+		/*try {
 			Properties projectProp = new Properties();
 
 			projectProp.load(classLoader.getResourceAsStream("project.properties"));
@@ -486,7 +489,7 @@ public final class Client {
 		}
 
 		System.err.println();
-		System.err.println("Loading workload...");
+		System.err.println("Loading workload...");*/
 
 		try {
 			Class<?> workloadClass = classLoader.loadClass(props.getProperty(WORKLOAD_PROPERTY));
@@ -505,13 +508,13 @@ public final class Client {
 	private static Properties parseArguments(String[] args) {
 		Properties props = new Properties();
 
-		System.err.print("Command line:");
+		/*System.err.print("Command line:");
 
 		for (String arg : args) {
 			System.err.print(" " + arg);
 		}
 
-		System.err.println();
+		System.err.println();*/
 
 		if (args.length == 0) {
 			usageMessage();

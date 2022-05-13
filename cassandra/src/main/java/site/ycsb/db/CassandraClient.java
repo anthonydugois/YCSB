@@ -7,6 +7,7 @@ import com.datastax.oss.driver.api.querybuilder.insert.Insert;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 import com.datastax.oss.driver.api.querybuilder.term.Term;
 import site.ycsb.*;
+import site.ycsb.tracing.TraceInfo;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -27,8 +28,6 @@ public class CassandraClient extends DB {
 	public static final String OPTION_TRACING = "tracing";
 	public static final boolean OPTION_TRACING_DEFAULT = false;
 
-	private static final ConcurrentMap<UUID, ExecutionInfo> traces = new ConcurrentHashMap<>();
-
 	private static final ConcurrentMap<Set<String>, PreparedStatement> readStmts = new ConcurrentHashMap<>();
 	// private static final ConcurrentMap<Set<String>, PreparedStatement> scanStmts = new ConcurrentHashMap<>();
 	private static final ConcurrentMap<Set<String>, PreparedStatement> insertStmts = new ConcurrentHashMap<>();
@@ -38,12 +37,14 @@ public class CassandraClient extends DB {
 	// private static final AtomicReference<PreparedStatement> scanAllStmt = new AtomicReference<>();
 	// private static final AtomicReference<PreparedStatement> deleteStmt = new AtomicReference<>();
 
-	private static final AtomicInteger INIT_COUNT = new AtomicInteger(0);
+	//private static final AtomicInteger INIT_COUNT = new AtomicInteger(0);
+
+	private final Set<ExecutionInfo> executionInfos = new HashSet<>();
 
 	@Override
 	public void init() throws DBException {
 		// Keep track of number of calls to init (for later cleanup)
-		INIT_COUNT.incrementAndGet();
+		/*INIT_COUNT.incrementAndGet();
 
 		// Synchronized so that we only have a single cluster/session instance for all the threads
 		synchronized (INIT_COUNT) {
@@ -57,12 +58,23 @@ public class CassandraClient extends DB {
 			} catch (Exception exception) {
 				throw new DBException(exception);
 			}
+		}*/
+
+		// Check if the cluster has already been initialized
+		if (session != null) {
+			return;
+		}
+
+		try {
+			session = CqlSession.builder().build();
+		} catch (Exception exception) {
+			throw new DBException(exception);
 		}
 	}
 
 	@Override
 	public void cleanup() throws DBException {
-		synchronized (INIT_COUNT) {
+		/*synchronized (INIT_COUNT) {
 			final int count = INIT_COUNT.decrementAndGet();
 
 			if (count <= 0) {
@@ -83,7 +95,19 @@ public class CassandraClient extends DB {
 				// This should never happen
 				throw new DBException("INIT_COUNT is negative: " + count);
 			}
+		}*/
+
+		if (session == null) {
+			return;
 		}
+
+		readStmts.clear();
+		insertStmts.clear();
+
+		readAllStmt.set(null);
+
+		session.close();
+		session = null;
 	}
 
 	@Override
@@ -127,10 +151,7 @@ public class CassandraClient extends DB {
 			ResultSet resultSet = session.execute(bound);
 
 			if (tracing) {
-				ExecutionInfo executionInfo = resultSet.getExecutionInfo();
-				UUID uuid = executionInfo.getTracingId();
-
-				traces.put(uuid, executionInfo);
+				executionInfos.add(resultSet.getExecutionInfo());
 			}
 
 			Row row = resultSet.one();
@@ -191,6 +212,7 @@ public class CassandraClient extends DB {
 			BoundStatement bound = stmt.bind();
 
 			bound = bound.setString(PARTITION_KEY, key);
+
 			for (String field : fields) {
 				bound = bound.setString(field, values.get(field).toString());
 			}
@@ -212,5 +234,24 @@ public class CassandraClient extends DB {
 	@Override
 	public Status delete(String table, String key) {
 		return Status.NOT_IMPLEMENTED;
+	}
+
+	@Override
+	public Collection<TraceInfo> traces() {
+		Set<TraceInfo> traces = new HashSet<>();
+
+		for (ExecutionInfo executionInfo : executionInfos) {
+			TraceInfo traceInfo = new TraceInfo(executionInfo.getTracingId());
+
+			QueryTrace queryTrace = executionInfo.getQueryTrace();
+
+			for (TraceEvent event : queryTrace.getEvents()) {
+				traceInfo.register(event.getActivity(), event.getSourceElapsedMicros());
+			}
+
+			traces.add(traceInfo);
+		}
+
+		return traces;
 	}
 }

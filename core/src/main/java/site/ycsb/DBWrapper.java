@@ -20,6 +20,7 @@ package site.ycsb;
 import org.apache.htrace.core.TraceScope;
 import org.apache.htrace.core.Tracer;
 import site.ycsb.measurements.Measurements;
+import site.ycsb.tracing.TraceInfo;
 
 import java.util.*;
 
@@ -31,15 +32,6 @@ public class DBWrapper extends DB {
 	private final DB db;
 	private final Measurements measurements;
 	private final Tracer tracer;
-
-	/*private boolean reportLatencyForEachError = false;
-	private Set<String> latencyTrackedErrors = new HashSet<>();
-
-	private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY = "reportlatencyforeacherror";
-	private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT = "false";
-	private static final String LATENCY_TRACKED_ERRORS_PROPERTY = "latencytrackederrors";
-
-	private static final AtomicBoolean LOG_REPORT_CONFIG = new AtomicBoolean(false);*/
 
 	private final String scopeStringCleanup;
 	private final String scopeStringDelete;
@@ -65,65 +57,39 @@ public class DBWrapper extends DB {
 		this.scopeStringUpdate = name + "#update";
 	}
 
+	@Override
 	public void setProperties(Properties props) {
 		db.setProperties(props);
 	}
 
+	@Override
 	public Properties getProperties() {
 		return db.getProperties();
 	}
 
-	private void measure(String op, Status result, long intendedStartTimeNanos, long startTimeNanos, long endTimeNanos) {
-		String measurementName = op;
-
-		if (result == null || !result.isOk()) {
-			/*if (this.reportLatencyForEachError || this.latencyTrackedErrors.contains(result.getName())) {
-				measurementName = op + "-" + result.getName();
-			} else {
-				measurementName = op + "-FAILED";
-			}*/
-			measurementName += "-FAILED";
-		}
-
-		measurements.measure(measurementName, (int) ((endTimeNanos - startTimeNanos) / 1000));
-		measurements.measureIntended(measurementName, (int) ((endTimeNanos - intendedStartTimeNanos) / 1000));
-	}
-
+	@Override
 	public void init() throws DBException {
 		try (final TraceScope span = tracer.newScope(scopeStringInit)) {
 			db.init();
-
-			/*this.reportLatencyForEachError = Boolean.parseBoolean(getProperties().getProperty(REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY, REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT));
-
-			if (!reportLatencyForEachError) {
-				String latencyTrackedErrorsProperty = getProperties().getProperty(LATENCY_TRACKED_ERRORS_PROPERTY, null);
-
-				if (latencyTrackedErrorsProperty != null) {
-					this.latencyTrackedErrors = new HashSet<>(Arrays.asList(latencyTrackedErrorsProperty.split(",")));
-				}
-			}*/
-
-			/*if (LOG_REPORT_CONFIG.compareAndSet(false, true)) {
-				System.err.println("DBWrapper: report latency for each error is " +
-						this.reportLatencyForEachError + " and specific error codes to track" +
-						" for latency are: " + this.latencyTrackedErrors.toString());
-			}*/
 		}
 	}
 
+	@Override
 	public void cleanup() throws DBException {
 		try (final TraceScope span = tracer.newScope(scopeStringCleanup)) {
-			long ist = measurements.getIntendedStartTimeNanos();
+			/*long ist = measurements.getIntendedStartTimeNanos();
 			long st = System.nanoTime();
 
 			db.cleanup();
 
 			long en = System.nanoTime();
 
-			measure("CLEANUP", Status.OK, ist, st, en);
+			measure("CLEANUP", Status.OK, ist, st, en);*/
+			db.cleanup();
 		}
 	}
 
+	@Override
 	public Status read(String table, String key, Set<String> fields, Map<String, Object> options,
 					   Map<String, ByteIterator> result) {
 		try (final TraceScope span = tracer.newScope(scopeStringRead)) {
@@ -141,6 +107,7 @@ public class DBWrapper extends DB {
 		}
 	}
 
+	@Override
 	public Status scan(String table, String startkey, int recordcount, Set<String> fields,
 					   Vector<HashMap<String, ByteIterator>> result) {
 		try (final TraceScope span = tracer.newScope(scopeStringScan)) {
@@ -158,6 +125,7 @@ public class DBWrapper extends DB {
 		}
 	}
 
+	@Override
 	public Status update(String table, String key, Map<String, ByteIterator> values) {
 		try (final TraceScope span = tracer.newScope(scopeStringUpdate)) {
 			long ist = measurements.getIntendedStartTimeNanos();
@@ -174,6 +142,7 @@ public class DBWrapper extends DB {
 		}
 	}
 
+	@Override
 	public Status insert(String table, String key, Map<String, ByteIterator> values, Map<String, Object> options) {
 		try (final TraceScope span = tracer.newScope(scopeStringInsert)) {
 			long ist = measurements.getIntendedStartTimeNanos();
@@ -190,6 +159,7 @@ public class DBWrapper extends DB {
 		}
 	}
 
+	@Override
 	public Status delete(String table, String key) {
 		try (final TraceScope span = tracer.newScope(scopeStringDelete)) {
 			long ist = measurements.getIntendedStartTimeNanos();
@@ -204,5 +174,29 @@ public class DBWrapper extends DB {
 
 			return res;
 		}
+	}
+
+	@Override
+	public Collection<TraceInfo> traces() {
+		Collection<TraceInfo> traceInfos = db.traces();
+
+		for (TraceInfo traceInfo : traceInfos) {
+			for (Map.Entry<String, Integer> entry : traceInfo.getEventDurationMicros().entrySet()) {
+				measurements.measure(entry.getKey(), entry.getValue());
+			}
+		}
+
+		return traceInfos;
+	}
+
+	private void measure(String op, Status result, long intendedStartTimeNanos, long startTimeNanos, long endTimeNanos) {
+		String measurementName = op;
+
+		if (result == null || !result.isOk()) {
+			measurementName += "-FAILED";
+		}
+
+		measurements.measure(measurementName, (int) ((endTimeNanos - startTimeNanos) / 1000));
+		measurements.measureIntended(measurementName, (int) ((endTimeNanos - intendedStartTimeNanos) / 1000));
 	}
 }

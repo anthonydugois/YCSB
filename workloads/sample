@@ -1,7 +1,7 @@
 table=tbl
 
 recordcount=1000
-operationcount=1000
+operationcount=10000
 workload=site.ycsb.workloads.CoreWorkload
 
 readallfields=true
@@ -12,3 +12,5 @@ scanproportion=0
 insertproportion=0
 
 requestdistribution=zipfian
+
+traceproportion=0.1

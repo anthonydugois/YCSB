@@ -20,10 +20,10 @@ package site.ycsb.workloads;
 import site.ycsb.*;
 import site.ycsb.generator.*;
 import site.ycsb.generator.UniformLongGenerator;
-import site.ycsb.measurements.Measurements;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The core benchmark scenario. Represents a set of clients doing simple CRUD operations. The
@@ -132,13 +132,6 @@ public class CoreWorkload extends Workload {
 	public static final String WRITE_ALL_FIELDS_PROPERTY_DEFAULT = "false";
 
 	/**
-	 * The name of the property for deciding whether to check all returned
-	 * data against the formation template to ensure data integrity.
-	 */
-	/*public static final String DATA_INTEGRITY_PROPERTY = "dataintegrity";
-	public static final String DATA_INTEGRITY_PROPERTY_DEFAULT = "false";*/
-
-	/**
 	 * The name of the property for the proportion of transactions that are reads.
 	 */
 	public static final String READ_PROPORTION_PROPERTY = "readproportion";
@@ -161,12 +154,6 @@ public class CoreWorkload extends Workload {
 	 */
 	public static final String SCAN_PROPORTION_PROPERTY = "scanproportion";
 	public static final String SCAN_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-	/**
-	 * The name of the property for the proportion of transactions that are read-modify-write.
-	 */
-	/*public static final String READMODIFYWRITE_PROPORTION_PROPERTY = "readmodifywriteproportion";
-	public static final String READMODIFYWRITE_PROPORTION_PROPERTY_DEFAULT = "0.0";*/
 
 	/**
 	 * The name of the property for the the distribution of requests across the keyspace. Options are
@@ -220,22 +207,16 @@ public class CoreWorkload extends Workload {
 	public static final String HOTSPOT_OPN_FRACTION_DEFAULT = "0.8";
 
 	/**
-	 * How many times to retry when insertion of a single item to a DB fails.
-	 */
-	/*public static final String INSERTION_RETRY_LIMIT = "core_workload_insertion_retry_limit";
-	public static final String INSERTION_RETRY_LIMIT_DEFAULT = "0";*/
-
-	/**
-	 * On average, how long to wait between the retries, in seconds.
-	 */
-	/*public static final String INSERTION_RETRY_INTERVAL = "core_workload_insertion_retry_interval";
-	public static final String INSERTION_RETRY_INTERVAL_DEFAULT = "3";*/
-
-	/**
 	 * Field name prefix.
 	 */
 	public static final String FIELD_NAME_PREFIX = "fieldnameprefix";
 	public static final String FIELD_NAME_PREFIX_DEFAULT = "field";
+
+	/**
+	 * Proportion of requests to trace.
+	 */
+	public static final String TRACE_PROPORTION_PROPERTY = "traceproportion";
+	public static final String TRACE_PROPORTION_PROPERTY_DEFAULT = "0.01";
 
 	protected String table;
 
@@ -253,11 +234,6 @@ public class CoreWorkload extends Workload {
 
 	protected boolean writeAllFields;
 
-	/**
-	 * Set to true if want to check correctness of reads. Must also be set to true during loading phase to function.
-	 */
-	//private boolean dataIntegrity;
-
 	protected NumberGenerator idGenerator;
 	protected DiscreteGenerator opGenerator;
 	protected NumberGenerator idSelector;
@@ -268,10 +244,8 @@ public class CoreWorkload extends Workload {
 	protected long fieldCount;
 	protected long recordCount;
 	protected int zeroPadding;
-	protected int insertionRetryLimit;
-	protected int insertionRetryInterval;
 
-	private final Measurements measurements = Measurements.getMeasurements();
+	protected double traceProportion;
 
 	public static String buildKey(long id, int zeroPadding, boolean orderedInserts) {
 		if (!orderedInserts) {
@@ -368,19 +342,6 @@ public class CoreWorkload extends Workload {
 		readAllFieldsByName = Boolean.parseBoolean(props.getProperty(READ_ALL_FIELDS_BY_NAME_PROPERTY, READ_ALL_FIELDS_BY_NAME_PROPERTY_DEFAULT));
 		writeAllFields = Boolean.parseBoolean(props.getProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_PROPERTY_DEFAULT));
 
-		//dataIntegrity = Boolean.parseBoolean(props.getProperty(DATA_INTEGRITY_PROPERTY, DATA_INTEGRITY_PROPERTY_DEFAULT));
-
-		// Confirm that fieldlengthgenerator returns a constant if data integrity check requested.
-		/*if (dataIntegrity && !(props.getProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY, FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT)).equals("constant")) {
-			System.err.println("Must have constant field size to check data integrity.");
-
-			System.exit(-1);
-		}
-
-		if (dataIntegrity) {
-			System.out.println("Data integrity is enabled.");
-		}*/
-
 		orderedInserts = props.getProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_PROPERTY_DEFAULT).compareTo("hashed") != 0;
 
 		idGenerator = new CounterGenerator(insertStart);
@@ -435,71 +396,23 @@ public class CoreWorkload extends Workload {
 			throw new WorkloadException("Distribution \"" + scanlengthdistrib + "\" not allowed for scan length");
 		}
 
-		//insertionRetryLimit = Integer.parseInt(props.getProperty(INSERTION_RETRY_LIMIT, INSERTION_RETRY_LIMIT_DEFAULT));
-		//insertionRetryInterval = Integer.parseInt(props.getProperty(INSERTION_RETRY_INTERVAL, INSERTION_RETRY_INTERVAL_DEFAULT));
+		traceProportion = Double.parseDouble(props.getProperty(TRACE_PROPORTION_PROPERTY, TRACE_PROPORTION_PROPERTY_DEFAULT));
 	}
-
-	/**
-	 * Builds a value for a randomly chosen field.
-	 */
-	/*private HashMap<String, ByteIterator> buildSingleValue(String key) {
-		HashMap<String, ByteIterator> value = new HashMap<>();
-		String fieldKey = fieldNames.get(fieldChooser.nextValue().intValue());
-
-		ByteIterator data;
-
-		if (dataIntegrity) {
-			data = new StringByteIterator(buildDeterministicValue(key, fieldKey));
-		} else {
-			data = new RandomByteIterator(fieldLengthGenerator.nextValue().longValue());
-		}
-
-		value.put(fieldKey, data);
-
-		return value;
-	}*/
 
 	/**
 	 * Builds values for all fields.
 	 */
-	private HashMap<String, ByteIterator> buildValues() {
+	private HashMap<String, ByteIterator> createRandomValues() {
 		HashMap<String, ByteIterator> values = new HashMap<>();
 
 		for (String fieldName : fieldNames) {
 			ByteIterator data = new RandomByteIterator(fieldLengthGenerator.nextValue().longValue());
-
-			/*if (dataIntegrity) {
-				data = new StringByteIterator(buildDeterministicValue(key, fieldName));
-			} else {
-				data = new RandomByteIterator(fieldLengthGenerator.nextValue().longValue());
-			}*/
 
 			values.put(fieldName, data);
 		}
 
 		return values;
 	}
-
-	/**
-	 * Build a deterministic value given the key information.
-	 */
-	/*private String buildDeterministicValue(String key, String fieldkey) {
-		int size = fieldLengthGenerator.nextValue().intValue();
-		StringBuilder builder = new StringBuilder(size);
-
-		builder.append(key)
-				.append(':')
-				.append(fieldkey);
-
-		while (builder.length() < size) {
-			builder.append(':');
-			builder.append(builder.toString().hashCode());
-		}
-
-		builder.setLength(size);
-
-		return builder.toString();
-	}*/
 
 	/**
 	 * Creates a weighted discrete values with database operations for a workload to perform.
@@ -522,7 +435,6 @@ public class CoreWorkload extends Workload {
 		proportions.put("UPDATE", Double.parseDouble(props.getProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_PROPERTY_DEFAULT)));
 		proportions.put("INSERT", Double.parseDouble(props.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT)));
 		proportions.put("SCAN", Double.parseDouble(props.getProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_PROPERTY_DEFAULT)));
-		//proportions.put("READMODIFYWRITE", Double.parseDouble(props.getProperty(READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_PROPERTY_DEFAULT)));
 
 		final DiscreteGenerator opGenerator = new DiscreteGenerator();
 
@@ -537,36 +449,6 @@ public class CoreWorkload extends Workload {
 
 		return opGenerator;
 	}
-
-	/**
-	 * Results are reported in the first three buckets of the histogram under
-	 * the label "VERIFY".
-	 * Bucket 0 means the expected data was returned.
-	 * Bucket 1 means incorrect data was returned.
-	 * Bucket 2 means null data was returned when some data was expected.
-	 */
-	/*protected void verifyRow(String key, HashMap<String, ByteIterator> cells) {
-		Status verifyStatus = Status.OK;
-
-		long startTime = System.nanoTime();
-
-		if (!cells.isEmpty()) {
-			for (Map.Entry<String, ByteIterator> entry : cells.entrySet()) {
-				if (!entry.getValue().toString().equals(buildDeterministicValue(key, entry.getKey()))) {
-					verifyStatus = Status.UNEXPECTED_STATE;
-					break;
-				}
-			}
-		} else {
-			// This assumes that null data is never valid
-			verifyStatus = Status.ERROR;
-		}
-
-		long endTime = System.nanoTime();
-
-		measurements.measure("VERIFY", (int) (endTime - startTime) / 1000);
-		measurements.reportStatus("VERIFY", verifyStatus);
-	}*/
 
 	long nextId() {
 		long id;
@@ -593,43 +475,13 @@ public class CoreWorkload extends Workload {
 	@Override
 	public boolean doInsert(DB db, Object threadState) {
 		String key = buildKey(idGenerator.nextValue().intValue(), zeroPadding, orderedInserts);
-		HashMap<String, ByteIterator> values = buildValues();
+		HashMap<String, ByteIterator> values = createRandomValues();
 
 		Map<String, Object> options = new HashMap<>();
 
 		options.put("profile", "load");
 
 		Status status = db.insert(table, key, values, options);
-		//int numOfRetries = 0;
-
-		/*do {
-			status = db.insert(table, key, values);
-
-			if (null != status && status.isOk()) {
-				break;
-			}
-
-			// Retry if configured. Without retrying, the load process will fail
-			// even if one single insertion fails. User can optionally configure
-			// an insertion retry limit (default is 0) to enable retry.
-			if (++numOfRetries <= insertionRetryLimit) {
-				System.err.println("Retrying insertion, retry count: " + numOfRetries);
-
-				try {
-					// Sleep for a random number between [0.8, 1.2) * insertionRetryInterval
-					int sleepTime = (int) (1000 * insertionRetryInterval * (0.8 + 0.4 * Math.random()));
-
-					Thread.sleep(sleepTime);
-				} catch (InterruptedException e) {
-					break;
-				}
-			} else {
-				System.err.println("Error inserting, not retrying any more. number of attempts: " + numOfRetries +
-						"Insertion Retry Limit: " + insertionRetryLimit);
-
-				break;
-			}
-		} while (true);*/
 
 		return status != null && status.isOk();
 	}
@@ -661,8 +513,6 @@ public class CoreWorkload extends Workload {
 			case "SCAN":
 				doTransactionScan(db);
 				break;
-			/*default:
-				doTransactionReadModifyWrite(db);*/
 		}
 
 		return true;
@@ -690,77 +540,14 @@ public class CoreWorkload extends Workload {
 			fields.add(fieldName);
 		}
 
-		/*if (!readAllFields) {
-			// Read a random field
-			// TODO: make possible to read a random number of fields
-			String fieldName = fieldNames.get(fieldChooser.nextValue().intValue());
-
-			fields = new HashSet<>();
-			fields.add(fieldName);
-		} else if (dataIntegrity || readAllFieldsByName) {
-			fields = new HashSet<>(fieldNames);
-		} else {
-			fields = null;
-		}*/
-
 		Map<String, Object> options = new HashMap<>();
 
 		options.put("profile", "read");
+		options.put("tracing", traceProportion > 0 && ThreadLocalRandom.current().nextDouble() <= traceProportion);
 
 		Map<String, ByteIterator> result = new HashMap<>();
 
 		db.read(table, key, fields, options, result);
-
-		/*if (dataIntegrity) {
-			verifyRow(key, cells);
-		}*/
-	}
-
-	public void doTransactionReadModifyWrite(DB db) {
-		// choose a random key
-		/*long keynum = nextKey();
-
-		String keyname = CoreWorkload.buildKeyName(keynum, zeroPadding, orderedInserts);
-
-		HashSet<String> fields = null;
-
-		if (!readAllFields) {
-			// read a random field
-			String fieldname = fieldNames.get(fieldChooser.nextValue().intValue());
-
-			fields = new HashSet<String>();
-			fields.add(fieldname);
-		}
-
-		HashMap<String, ByteIterator> values;
-
-		if (writeAllFields) {
-			// new data for all the fields
-			values = buildValues(keyname);
-		} else {
-			// update a random field
-			values = buildSingleValue(keyname);
-		}
-
-		// do the transaction
-
-		HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-
-
-		long ist = measurements.getIntendedStartTimeNs();
-		long st = System.nanoTime();
-		db.read(table, keyname, fields, cells);
-
-		db.update(table, keyname, values);
-
-		long en = System.nanoTime();
-
-		if (dataIntegrity) {
-			verifyRow(keyname, cells);
-		}
-
-		measurements.measure("READ-MODIFY-WRITE", (int) ((en - st) / 1000));
-		measurements.measureIntended("READ-MODIFY-WRITE", (int) ((en - ist) / 1000));*/
 	}
 
 	public void doTransactionScan(DB db) {
@@ -809,7 +596,7 @@ public class CoreWorkload extends Workload {
 
 		try {
 			String key = buildKey(id, zeroPadding, orderedInserts);
-			HashMap<String, ByteIterator> values = buildValues();
+			HashMap<String, ByteIterator> values = createRandomValues();
 
 			//db.insert(table, key, values);
 		} finally {
