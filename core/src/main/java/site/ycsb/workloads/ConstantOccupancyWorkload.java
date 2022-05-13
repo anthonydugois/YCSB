@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 package site.ycsb.workloads;
 
 import site.ycsb.Client;
@@ -22,6 +23,7 @@ import site.ycsb.generator.NumberGenerator;
 
 import java.util.Properties;
 
+*/
 /**
  * A disk-fragmenting workload.
  * <p>
@@ -41,7 +43,8 @@ import java.util.Properties;
  * Repositories</a>,
  * CIDR 2006. [<a href='https://database.cs.wisc.edu/cidr/cidr2007/slides/p34-sears.ppt'>Presentation</a>]
  * </p>
- */
+ *//*
+
 public class ConstantOccupancyWorkload extends CoreWorkload {
   private long disksize;
   private long storageages;
@@ -59,30 +62,31 @@ public class ConstantOccupancyWorkload extends CoreWorkload {
   public static final double OCCUPANCY_PROPERTY_DEFAULT = 0.9;
 
   @Override
-  public void init(Properties p) throws WorkloadException {
-    disksize = Long.parseLong(p.getProperty(DISK_SIZE_PROPERTY, String.valueOf(DISK_SIZE_PROPERTY_DEFAULT)));
-    storageages = Long.parseLong(p.getProperty(STORAGE_AGE_PROPERTY, String.valueOf(STORAGE_AGE_PROPERTY_DEFAULT)));
-    occupancy = Double.parseDouble(p.getProperty(OCCUPANCY_PROPERTY, String.valueOf(OCCUPANCY_PROPERTY_DEFAULT)));
+  public void init(Properties props) throws WorkloadException {
+    disksize = Long.parseLong(props.getProperty(DISK_SIZE_PROPERTY, String.valueOf(DISK_SIZE_PROPERTY_DEFAULT)));
+    storageages = Long.parseLong(props.getProperty(STORAGE_AGE_PROPERTY, String.valueOf(STORAGE_AGE_PROPERTY_DEFAULT)));
+    occupancy = Double.parseDouble(props.getProperty(OCCUPANCY_PROPERTY, String.valueOf(OCCUPANCY_PROPERTY_DEFAULT)));
 
-    if (p.getProperty(Client.RECORD_COUNT_PROPERTY) != null ||
-        p.getProperty(Client.INSERT_COUNT_PROPERTY) != null ||
-        p.getProperty(Client.OPERATION_COUNT_PROPERTY) != null) {
+    if (props.getProperty(Client.RECORD_COUNT_PROPERTY) != null ||
+        props.getProperty(Client.INSERT_COUNT_PROPERTY) != null ||
+        props.getProperty(Client.OPERATION_COUNT_PROPERTY) != null) {
       System.err.println("Warning: record, insert or operation count was set prior to initting " +
           "ConstantOccupancyWorkload.  Overriding old values.");
     }
-    NumberGenerator g = CoreWorkload.getFieldLengthGenerator(p);
+    NumberGenerator g = CoreWorkload.getFieldLengthGenerator(props);
     double fieldsize = g.mean();
-    int fieldcount = Integer.parseInt(p.getProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_PROPERTY_DEFAULT));
+    int fieldcount = Integer.parseInt(props.getProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_PROPERTY_DEFAULT));
 
     objectCount = (long) (occupancy * (disksize / (fieldsize * fieldcount)));
     if (objectCount == 0) {
       throw new IllegalStateException("Object count was zero.  Perhaps disksize is too low?");
     }
-    p.setProperty(Client.RECORD_COUNT_PROPERTY, String.valueOf(objectCount));
-    p.setProperty(Client.OPERATION_COUNT_PROPERTY, String.valueOf(storageages * objectCount));
-    p.setProperty(Client.INSERT_COUNT_PROPERTY, String.valueOf(objectCount));
+    props.setProperty(Client.RECORD_COUNT_PROPERTY, String.valueOf(objectCount));
+    props.setProperty(Client.OPERATION_COUNT_PROPERTY, String.valueOf(storageages * objectCount));
+    props.setProperty(Client.INSERT_COUNT_PROPERTY, String.valueOf(objectCount));
 
-    super.init(p);
+    super.init(props);
   }
 
 }
+*/

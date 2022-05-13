@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 package site.ycsb.workloads;
 
 import java.util.HashMap;
@@ -50,6 +51,7 @@ import site.ycsb.generator.UnixEpochTimestampGenerator;
 import site.ycsb.generator.ZipfianGenerator;
 import site.ycsb.measurements.Measurements;
 
+*/
 /**
  * A specialized workload dealing with time series data, i.e. series of discreet
  * events associated with timestamps and identifiers. For this workload, identities
@@ -280,12 +282,15 @@ import site.ycsb.measurements.Measurements;
  * <li>Possibly a real-time load where values are written with the current system time.
  * It's more of a bulk-loading operation now.</li>
  * </ul>
- */
+ *//*
+
 public class TimeSeriesWorkload extends Workload {  
   
-  /**
+  */
+/**
    * The types of values written to the timeseries store.
-   */
+   *//*
+
   public enum ValueType {
     INTEGERS("integers"),
     FLOATS("floats"),
@@ -307,238 +312,374 @@ public class TimeSeriesWorkload extends Workload {
     }
   }
   
-  /** Name and default value for the timestamp key property. */
+  */
+/** Name and default value for the timestamp key property. *//*
+
   public static final String TIMESTAMP_KEY_PROPERTY = "timestampkey";
   public static final String TIMESTAMP_KEY_PROPERTY_DEFAULT = "YCSBTS";
   
-  /** Name and default value for the value key property. */
+  */
+/** Name and default value for the value key property. *//*
+
   public static final String VALUE_KEY_PROPERTY = "valuekey";
   public static final String VALUE_KEY_PROPERTY_DEFAULT = "YCSBV";
   
-  /** Name and default value for the timestamp interval property. */    
+  */
+/** Name and default value for the timestamp interval property. *//*
+
   public static final String TIMESTAMP_INTERVAL_PROPERTY = "timestampinterval";    
   public static final String TIMESTAMP_INTERVAL_PROPERTY_DEFAULT = "60";    
       
-  /** Name and default value for the timestamp units property. */   
+  */
+/** Name and default value for the timestamp units property. *//*
+
   public static final String TIMESTAMP_UNITS_PROPERTY = "timestampunits";    
   public static final String TIMESTAMP_UNITS_PROPERTY_DEFAULT = "SECONDS"; 
   
-  /** Name and default value for the number of tags property. */
+  */
+/** Name and default value for the number of tags property. *//*
+
   public static final String TAG_COUNT_PROPERTY = "tagcount";
   public static final String TAG_COUNT_PROPERTY_DEFAULT = "4";
   
-  /** Name and default value for the tag value cardinality map property. */
+  */
+/** Name and default value for the tag value cardinality map property. *//*
+
   public static final String TAG_CARDINALITY_PROPERTY = "tagcardinality";
   public static final String TAG_CARDINALITY_PROPERTY_DEFAULT = "1, 2, 4, 8";
   
-  /** Name and default value for the tag key length property. */
+  */
+/** Name and default value for the tag key length property. *//*
+
   public static final String TAG_KEY_LENGTH_PROPERTY = "tagkeylength";
   public static final String TAG_KEY_LENGTH_PROPERTY_DEFAULT = "8";
   
-  /** Name and default value for the tag value length property. */
+  */
+/** Name and default value for the tag value length property. *//*
+
   public static final String TAG_VALUE_LENGTH_PROPERTY = "tagvaluelength";
   public static final String TAG_VALUE_LENGTH_PROPERTY_DEFAULT = "8";
   
-  /** Name and default value for the tag pair delimiter property. */
+  */
+/** Name and default value for the tag pair delimiter property. *//*
+
   public static final String PAIR_DELIMITER_PROPERTY = "tagpairdelimiter";
   public static final String PAIR_DELIMITER_PROPERTY_DEFAULT = "=";
   
-  /** Name and default value for the delete string delimiter property. */
+  */
+/** Name and default value for the delete string delimiter property. *//*
+
   public static final String DELETE_DELIMITER_PROPERTY = "deletedelimiter";
   public static final String DELETE_DELIMITER_PROPERTY_DEFAULT = ":";
   
-  /** Name and default value for the random timestamp write order property. */
+  */
+/** Name and default value for the random timestamp write order property. *//*
+
   public static final String RANDOMIZE_TIMESTAMP_ORDER_PROPERTY = "randomwritetimestamporder";
   public static final String RANDOMIZE_TIMESTAMP_ORDER_PROPERTY_DEFAULT = "false";
   
-  /** Name and default value for the random time series write order property. */
+  */
+/** Name and default value for the random time series write order property. *//*
+
   public static final String RANDOMIZE_TIMESERIES_ORDER_PROPERTY = "randomtimeseriesorder";
   public static final String RANDOMIZE_TIMESERIES_ORDER_PROPERTY_DEFAULT = "true";
   
-  /** Name and default value for the value types property. */
+  */
+/** Name and default value for the value types property. *//*
+
   public static final String VALUE_TYPE_PROPERTY = "valuetype";
   public static final String VALUE_TYPE_PROPERTY_DEFAULT = "floats";
   
-  /** Name and default value for the sparsity property. */
+  */
+/** Name and default value for the sparsity property. *//*
+
   public static final String SPARSITY_PROPERTY = "sparsity";
   public static final String SPARSITY_PROPERTY_DEFAULT = "0.00";
   
-  /** Name and default value for the delayed series percentage property. */
+  */
+/** Name and default value for the delayed series percentage property. *//*
+
   public static final String DELAYED_SERIES_PROPERTY = "delayedseries";
   public static final String DELAYED_SERIES_PROPERTY_DEFAULT = "0.10";
   
-  /** Name and default value for the delayed series intervals property. */
+  */
+/** Name and default value for the delayed series intervals property. *//*
+
   public static final String DELAYED_INTERVALS_PROPERTY = "delayedintervals";
   public static final String DELAYED_INTERVALS_PROPERTY_DEFAULT = "5";
   
-  /** Name and default value for the query time span property. */
+  */
+/** Name and default value for the query time span property. *//*
+
   public static final String QUERY_TIMESPAN_PROPERTY = "querytimespan";
   public static final String QUERY_TIMESPAN_PROPERTY_DEFAULT = "0";
   
-  /** Name and default value for the randomized query time span property. */
+  */
+/** Name and default value for the randomized query time span property. *//*
+
   public static final String QUERY_RANDOM_TIMESPAN_PROPERTY = "queryrandomtimespan";
   public static final String QUERY_RANDOM_TIMESPAN_PROPERTY_DEFAULT = "false";
   
-  /** Name and default value for the query time stamp delimiter property. */
+  */
+/** Name and default value for the query time stamp delimiter property. *//*
+
   public static final String QUERY_TIMESPAN_DELIMITER_PROPERTY = "querytimespandelimiter";
   public static final String QUERY_TIMESPAN_DELIMITER_PROPERTY_DEFAULT = ",";
   
-  /** Name and default value for the group-by key property. */
+  */
+/** Name and default value for the group-by key property. *//*
+
   public static final String GROUPBY_KEY_PROPERTY = "groupbykey";
   public static final String GROUPBY_KEY_PROPERTY_DEFAULT = "YCSBGB";
   
-  /** Name and default value for the group-by function property. */
+  */
+/** Name and default value for the group-by function property. *//*
+
   public static final String GROUPBY_PROPERTY = "groupbyfunction";
   
-  /** Name and default value for the group-by key map property. */
+  */
+/** Name and default value for the group-by key map property. *//*
+
   public static final String GROUPBY_KEYS_PROPERTY = "groupbykeys";
   
-  /** Name and default value for the downsampling key property. */
+  */
+/** Name and default value for the downsampling key property. *//*
+
   public static final String DOWNSAMPLING_KEY_PROPERTY = "downsamplingkey";
   public static final String DOWNSAMPLING_KEY_PROPERTY_DEFAULT = "YCSBDS";
   
-  /** Name and default value for the downsampling function property. */
+  */
+/** Name and default value for the downsampling function property. *//*
+
   public static final String DOWNSAMPLING_FUNCTION_PROPERTY = "downsamplingfunction";
   
-  /** Name and default value for the downsampling interval property. */
+  */
+/** Name and default value for the downsampling interval property. *//*
+
   public static final String DOWNSAMPLING_INTERVAL_PROPERTY = "downsamplinginterval";
   
-  /** The properties to pull settings from. */
+  */
+/** The properties to pull settings from. *//*
+
   protected Properties properties;
   
-  /** Generators for keys, tag keys and tag values. */
+  */
+/** Generators for keys, tag keys and tag values. *//*
+
   protected Generator<String> keyGenerator;
   protected Generator<String> tagKeyGenerator;
   protected Generator<String> tagValueGenerator;
   
-  /** The timestamp key, defaults to "YCSBTS". */
+  */
+/** The timestamp key, defaults to "YCSBTS". *//*
+
   protected String timestampKey;
   
-  /** The value key, defaults to "YCSBDS". */
+  */
+/** The value key, defaults to "YCSBDS". *//*
+
   protected String valueKey;
   
-  /** The number of time units in between timestamps. */
+  */
+/** The number of time units in between timestamps. *//*
+
   protected int timestampInterval;
   
-  /** The units of time the timestamp and various intervals represent. */
+  */
+/** The units of time the timestamp and various intervals represent. *//*
+
   protected TimeUnit timeUnits;
   
-  /** Whether or not to randomize the timestamp order when writing. */
+  */
+/** Whether or not to randomize the timestamp order when writing. *//*
+
   protected boolean randomizeTimestampOrder;
   
-  /** Whether or not to randomize (shuffle) the time series order. NOT compatible
-   * with data integrity. */
+  */
+/** Whether or not to randomize (shuffle) the time series order. NOT compatible
+   * with data integrity. *//*
+
   protected boolean randomizeTimeseriesOrder;
   
-  /** The type of values to generate when writing data. */
+  */
+/** The type of values to generate when writing data. *//*
+
   protected ValueType valueType;
   
-  /** Used to calculate an offset for each time series. */
+  */
+/** Used to calculate an offset for each time series. *//*
+
   protected int[] cumulativeCardinality;
   
-  /** The calculated total cardinality based on the config. */
+  */
+/** The calculated total cardinality based on the config. *//*
+
   protected int totalCardinality;
   
-  /** The calculated per-time-series-key cardinality. I.e. the number of unique
-   * tag key and value combinations. */
+  */
+/** The calculated per-time-series-key cardinality. I.e. the number of unique
+   * tag key and value combinations. *//*
+
   protected int perKeyCardinality;
   
-  /** How much data to scan for in each call. */
+  */
+/** How much data to scan for in each call. *//*
+
   protected NumberGenerator scanlength;
   
-  /** A generator used to select a random time series key per read/scan. */
+  */
+/** A generator used to select a random time series key per read/scan. *//*
+
   protected NumberGenerator keychooser;
   
-  /** A generator to select what operation to perform during the run phase. */
+  */
+/** A generator to select what operation to perform during the run phase. *//*
+
   protected DiscreteGenerator operationchooser;
   
-  /** The maximum number of interval offsets from the starting timestamp. Calculated
-   * based on the number of records configured for the run. */
+  */
+/** The maximum number of interval offsets from the starting timestamp. Calculated
+   * based on the number of records configured for the run. *//*
+
   protected int maxOffsets;
   
-  /** The number of records or operations to perform for this run. */
+  */
+/** The number of records or operations to perform for this run. *//*
+
   protected int recordcount;
   
-  /** The number of tag pairs per time series. */
+  */
+/** The number of tag pairs per time series. *//*
+
   protected int tagPairs;
   
-  /** The table we'll write to. */
+  */
+/** The table we'll write to. *//*
+
   protected String table;
   
-  /** How many time series keys will be generated. */
+  */
+/** How many time series keys will be generated. *//*
+
   protected int numKeys;
   
-  /** The generated list of possible time series key values. */
+  */
+/** The generated list of possible time series key values. *//*
+
   protected String[] keys;
 
-  /** The generated list of possible tag key values. */
+  */
+/** The generated list of possible tag key values. *//*
+
   protected String[] tagKeys;
   
-  /** The generated list of possible tag value values. */
+  */
+/** The generated list of possible tag value values. *//*
+
   protected String[] tagValues;
   
-  /** The cardinality for each tag key. */
+  */
+/** The cardinality for each tag key. *//*
+
   protected int[] tagCardinality;
   
-  /** A helper to skip non-incrementing tag values. */
+  */
+/** A helper to skip non-incrementing tag values. *//*
+
   protected int firstIncrementableCardinality;
   
-  /** How sparse the data written should be. */
+  */
+/** How sparse the data written should be. *//*
+
   protected double sparsity;
   
-  /** The percentage of time series that should be delayed in writes. */
+  */
+/** The percentage of time series that should be delayed in writes. *//*
+
   protected double delayedSeries;
   
-  /** The maximum number of intervals to delay a series. */
+  */
+/** The maximum number of intervals to delay a series. *//*
+
   protected int delayedIntervals;
   
-  /** Optional query time interval during reads/scans. */
+  */
+/** Optional query time interval during reads/scans. *//*
+
   protected int queryTimeSpan;
   
-  /** Whether or not the actual interval should be randomly chosen, using 
-   * queryTimeSpan as the maximum value. */
+  */
+/** Whether or not the actual interval should be randomly chosen, using
+   * queryTimeSpan as the maximum value. *//*
+
   protected boolean queryRandomTimeSpan;
   
-  /** The delimiter for tag pairs in fields. */
+  */
+/** The delimiter for tag pairs in fields. *//*
+
   protected String tagPairDelimiter;
   
-  /** The delimiter between parameters for the delete key. */
+  */
+/** The delimiter between parameters for the delete key. *//*
+
   protected String deleteDelimiter;
   
-  /** The delimiter between timestamps for query time spans. */
+  */
+/** The delimiter between timestamps for query time spans. *//*
+
   protected String queryTimeSpanDelimiter;
   
-  /** Whether or not to issue group-by queries. */
+  */
+/** Whether or not to issue group-by queries. *//*
+
   protected boolean groupBy;
   
-  /** The key used for group-by tag keys. */
+  */
+/** The key used for group-by tag keys. *//*
+
   protected String groupByKey;
   
-  /** The function used for group-by's. */
+  */
+/** The function used for group-by's. *//*
+
   protected String groupByFunction;
   
-  /** The tag keys to group on. */
+  */
+/** The tag keys to group on. *//*
+
   protected boolean[] groupBys;
   
-  /** Whether or not to issue downsampling queries. */
+  */
+/** Whether or not to issue downsampling queries. *//*
+
   protected boolean downsample;
   
-  /** The key used for downsampling tag keys. */
+  */
+/** The key used for downsampling tag keys. *//*
+
   protected String downsampleKey;
   
-  /** The downsampling function. */
+  */
+/** The downsampling function. *//*
+
   protected String downsampleFunction;
   
-  /** The downsampling interval. */
+  */
+/** The downsampling interval. *//*
+
   protected int downsampleInterval;
 
-  /**
+  */
+/**
    * Set to true if want to check correctness of reads. Must also
    * be set to true during loading phase to function.
-   */
+   *//*
+
   protected boolean dataintegrity;
   
-  /** Measurements to write data integrity results to. */
+  */
+/** Measurements to write data integrity results to. *//*
+
   protected Measurements measurements = Measurements.getMeasurements();
   
   @Override
@@ -552,7 +693,7 @@ public class TimeSeriesWorkload extends Workload {
     }
     timestampKey = p.getProperty(TIMESTAMP_KEY_PROPERTY, TIMESTAMP_KEY_PROPERTY_DEFAULT);
     valueKey = p.getProperty(VALUE_KEY_PROPERTY, VALUE_KEY_PROPERTY_DEFAULT);
-    operationchooser = CoreWorkload.createOperationGenerator(properties);
+    operationchooser = CoreWorkload.createOpGenerator(properties);
     
     final int maxscanlength =
         Integer.parseInt(p.getProperty(CoreWorkload.MAX_SCAN_LENGTH_PROPERTY, 
@@ -686,20 +827,20 @@ public class TimeSeriesWorkload extends Workload {
   }
   
   @Override
-  public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
+  public Object initThread(Properties p, int threadId, int threadcount) throws WorkloadException {
     if (properties == null) {
       throw new WorkloadException("Workload has not been initialized.");
     }
-    return new ThreadState(mythreadid, threadcount);
+    return new ThreadState(threadId, threadcount);
   }
   
   @Override
-  public boolean doInsert(DB db, Object threadstate) {
-    if (threadstate == null) {
+  public boolean doInsert(DB db, Object threadState) {
+    if (threadState == null) {
       throw new IllegalStateException("Missing thread state.");
     }
     final Map<String, ByteIterator> tags = new TreeMap<String, ByteIterator>();
-    final String key = ((ThreadState)threadstate).nextDataPoint(tags, true);
+    final String key = ((ThreadState) threadState).nextDataPoint(tags, true);
     if (db.insert(table, key, tags) == Status.OK) {
       return true;
     }
@@ -886,7 +1027,8 @@ public class TimeSeriesWorkload extends Workload {
     db.delete(table, buf.toString());
   }
   
-  /**
+  */
+/**
    * Parses the values returned by a read or scan operation and determines whether
    * or not the integer value matches the hash and timestamp of the original timestamp.
    * Only works for raw data points, will not work for group-by's or downsampled data.
@@ -894,7 +1036,8 @@ public class TimeSeriesWorkload extends Workload {
    * @param cells The cells read by the DB.
    * @return {@link Status#OK} if the data matched or {@link Status#UNEXPECTED_STATE} if
    * the data did not match.
-   */
+   *//*
+
   protected Status verifyRow(final String key, final Map<String, ByteIterator> cells) {
     Status verifyStatus = Status.UNEXPECTED_STATE;
     long startTime = System.nanoTime();
@@ -923,7 +1066,8 @@ public class TimeSeriesWorkload extends Workload {
     return verifyStatus;
   }
   
-  /**
+  */
+/**
    * Function used for generating a deterministic hash based on the combination
    * of metric, tags and timestamp.
    * @param key A non-null string representing the key.
@@ -931,7 +1075,8 @@ public class TimeSeriesWorkload extends Workload {
    * @param tags A non-null map of tag keys and values NOT including the YCSB
    * key or timestamp.
    * @return A hash value as an 8 byte integer.
-   */
+   *//*
+
   protected long validationFunction(final String key, final long timestamp, 
                                     final TreeMap<String, String> tags) {
     final StringBuilder validationBuffer = new StringBuilder(keys[0].length() + 
@@ -942,11 +1087,13 @@ public class TimeSeriesWorkload extends Workload {
     return (long) validationBuffer.toString().hashCode() ^ timestamp;
   }
   
-  /**
+  */
+/**
    * Breaks out the keys, tags and cardinality initialization in another method
    * to keep CheckStyle happy.
    * @throws WorkloadException If something goes pear shaped.
-   */
+   *//*
+
   protected void initKeysAndTags() throws WorkloadException {
     final int keyLength = Integer.parseInt(properties.getProperty(
         CoreWorkload.FIELD_LENGTH_PROPERTY, 
@@ -1048,10 +1195,12 @@ public class TimeSeriesWorkload extends Workload {
     cumulativeCardinality[cumulativeCardinality.length - 1] = 1;
   }
   
-  /**
+  */
+/**
    * Makes sure the settings as given are compatible.
    * @throws WorkloadException If one or more settings were invalid.
-   */
+   *//*
+
   protected void validateSettings() throws WorkloadException {
     if (dataintegrity) {
       if (valueType != ValueType.INTEGERS) {
@@ -1082,40 +1231,60 @@ public class TimeSeriesWorkload extends Workload {
     }
   }
   
-  /**
+  */
+/**
    * Thread state class holding thread local generators and indices.
-   */
+   *//*
+
   protected class ThreadState {
-    /** The timestamp generator for this thread. */
+    */
+/** The timestamp generator for this thread. *//*
+
     protected final UnixEpochTimestampGenerator timestampGenerator;
     
-    /** An offset generator to select a random offset for queries. */
+    */
+/** An offset generator to select a random offset for queries. *//*
+
     protected final NumberGenerator queryOffsetGenerator;
     
-    /** The current write key index. */
+    */
+/** The current write key index. *//*
+
     protected int keyIdx;
     
-    /** The starting fence for writing keys. */
+    */
+/** The starting fence for writing keys. *//*
+
     protected int keyIdxStart;
     
-    /** The ending fence for writing keys. */
+    */
+/** The ending fence for writing keys. *//*
+
     protected int keyIdxEnd;
     
-    /** Indices for each tag value for writes. */
+    */
+/** Indices for each tag value for writes. *//*
+
     protected int[] tagValueIdxs;
 
-    /** Whether or not all time series have written values for the current timestamp. */
+    */
+/** Whether or not all time series have written values for the current timestamp. *//*
+
     protected boolean rollover;
     
-    /** The starting timestamp. */
+    */
+/** The starting timestamp. *//*
+
     protected long startTimestamp;
     
-    /**
+    */
+/**
      * Default ctor.
      * @param threadID The zero based thread ID.
      * @param threadCount The total number of threads.
      * @throws WorkloadException If something went pear shaped.
-     */
+     *//*
+
     protected ThreadState(final int threadID, final int threadCount) throws WorkloadException {
       int totalThreads = threadCount > 0 ? threadCount : 1;
       
@@ -1164,14 +1333,16 @@ public class TimeSeriesWorkload extends Workload {
       queryOffsetGenerator = new UniformLongGenerator(0, maxOffsets - 2);
     }
     
-    /**
+    */
+/**
      * Generates the next write value for thread.
      * @param map An initialized map to populate with tag keys and values as well
      * as the timestamp and actual value.
      * @param isInsert Whether or not it's an insert or an update. Updates will pick
      * an older timestamp (if random isn't enabled).
      * @return The next key to write.
-     */
+     *//*
+
     protected String nextDataPoint(final Map<String, ByteIterator> map, final boolean isInsert) {
       final Random random = ThreadLocalRandom.current();
       int iterations = sparsity <= 0 ? 1 : random.nextInt((int) ((double) perKeyCardinality * sparsity));
@@ -1286,4 +1457,4 @@ public class TimeSeriesWorkload extends Workload {
     }
   }
 
-}
+}*/

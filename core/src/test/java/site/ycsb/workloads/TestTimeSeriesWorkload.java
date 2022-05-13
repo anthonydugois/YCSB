@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 package site.ycsb.workloads;
 
 import static org.testng.Assert.assertEquals;
@@ -485,7 +486,9 @@ public class TestTimeSeriesWorkload {
     } catch (WorkloadException e) { }
   }
   
-  /** Helper method that generates unit testing defaults for the properties map */
+  */
+/** Helper method that generates unit testing defaults for the properties map *//*
+
   private Properties getUTProperties() {
     final Properties p = new Properties();
     p.put(Client.RECORD_COUNT_PROPERTY, "10");
@@ -501,7 +504,9 @@ public class TestTimeSeriesWorkload {
     return p;
   }
   
-  /** Helper to setup the workload for testing. */
+  */
+/** Helper to setup the workload for testing. *//*
+
   private TimeSeriesWorkload getWorkload(final Properties p, final boolean init) 
       throws WorkloadException {
     Measurements.setProperties(p);
@@ -574,4 +579,4 @@ public class TestTimeSeriesWorkload {
       }
     }
   }
-}
+}*/

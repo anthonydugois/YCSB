@@ -18,6 +18,7 @@
 package site.ycsb;
 
 import site.ycsb.measurements.Measurements;
+
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -27,160 +28,153 @@ import java.util.concurrent.locks.LockSupport;
  * A thread for executing transactions or data inserts to the database.
  */
 public class ClientThread implements Runnable {
-  // Counts down each of the clients completing.
-  private final CountDownLatch completeLatch;
+	private final DB db;
+	private final boolean transactions;
+	private final Workload workload;
+	private final Properties props;
+	private final int opCount;
+	private final CountDownLatch completeLatch;
 
-  private static boolean spinSleep;
-  private DB db;
-  private boolean dotransactions;
-  private Workload workload;
-  private int opcount;
-  private double targetOpsPerMs;
+	private double targetOpsPerMs;
+	private long targetOpsTickNanos;
+	private int opsDone;
+	private final Measurements measurements;
+	private int threadId;
+	private int threadCount;
 
-  private int opsdone;
-  private int threadid;
-  private int threadcount;
-  private Object workloadstate;
-  private Properties props;
-  private long targetOpsTickNs;
-  private final Measurements measurements;
+	// should we keep this?
+	private static boolean spinSleep;
 
-  /**
-   * Constructor.
-   *
-   * @param db                   the DB implementation to use
-   * @param dotransactions       true to do transactions, false to insert data
-   * @param workload             the workload to use
-   * @param props                the properties defining the experiment
-   * @param opcount              the number of operations (transactions or inserts) to do
-   * @param targetperthreadperms target number of operations per thread per ms
-   * @param completeLatch        The latch tracking the completion of all clients.
-   */
-  public ClientThread(DB db, boolean dotransactions, Workload workload, Properties props, int opcount,
-                      double targetperthreadperms, CountDownLatch completeLatch) {
-    this.db = db;
-    this.dotransactions = dotransactions;
-    this.workload = workload;
-    this.opcount = opcount;
-    opsdone = 0;
-    if (targetperthreadperms > 0) {
-      targetOpsPerMs = targetperthreadperms;
-      targetOpsTickNs = (long) (1000000 / targetOpsPerMs);
-    }
-    this.props = props;
-    measurements = Measurements.getMeasurements();
-    spinSleep = Boolean.valueOf(this.props.getProperty("spin.sleep", "false"));
-    this.completeLatch = completeLatch;
-  }
+	public ClientThread(DB db, boolean transactions, Workload workload, Properties props, int opCount,
+						double threadTargetPerMs, CountDownLatch completeLatch) {
+		this.db = db;
+		this.transactions = transactions;
+		this.workload = workload;
+		this.props = props;
+		this.opCount = opCount;
+		this.completeLatch = completeLatch;
 
-  public void setThreadId(final int threadId) {
-    threadid = threadId;
-  }
+		if (threadTargetPerMs > 0) {
+			this.targetOpsPerMs = threadTargetPerMs;
+			this.targetOpsTickNanos = (long) (1000000 / targetOpsPerMs);
+		}
 
-  public void setThreadCount(final int threadCount) {
-    threadcount = threadCount;
-  }
+		this.opsDone = 0;
+		this.measurements = Measurements.getMeasurements();
 
-  public int getOpsDone() {
-    return opsdone;
-  }
+		spinSleep = Boolean.parseBoolean(this.props.getProperty("spin.sleep", "false"));
+	}
 
-  @Override
-  public void run() {
-    try {
-      db.init();
-    } catch (DBException e) {
-      e.printStackTrace();
-      e.printStackTrace(System.out);
-      return;
-    }
+	public void setThreadId(final int threadId) {
+		this.threadId = threadId;
+	}
 
-    try {
-      workloadstate = workload.initThread(props, threadid, threadcount);
-    } catch (WorkloadException e) {
-      e.printStackTrace();
-      e.printStackTrace(System.out);
-      return;
-    }
+	public void setThreadCount(final int threadCount) {
+		this.threadCount = threadCount;
+	}
 
-    //NOTE: Switching to using nanoTime and parkNanos for time management here such that the measurements
-    // and the client thread have the same view on time.
+	public int getOpsDone() {
+		return opsDone;
+	}
 
-    //spread the thread operations out so they don't all hit the DB at the same time
-    // GH issue 4 - throws exception if _target>1 because random.nextInt argument must be >0
-    // and the sleep() doesn't make sense for granularities < 1 ms anyway
-    if ((targetOpsPerMs > 0) && (targetOpsPerMs <= 1.0)) {
-      long randomMinorDelay = ThreadLocalRandom.current().nextInt((int) targetOpsTickNs);
-      sleepUntil(System.nanoTime() + randomMinorDelay);
-    }
-    try {
-      if (dotransactions) {
-        long startTimeNanos = System.nanoTime();
+	@Override
+	public void run() {
+		try {
+			db.init();
+		} catch (DBException e) {
+			e.printStackTrace();
+			e.printStackTrace(System.out);
 
-        while (((opcount == 0) || (opsdone < opcount)) && !workload.isStopRequested()) {
+			return;
+		}
 
-          if (!workload.doTransaction(db, workloadstate)) {
-            break;
-          }
+		Object state;
 
-          opsdone++;
+		try {
+			state = workload.initThread(props, threadId, threadCount);
+		} catch (WorkloadException e) {
+			e.printStackTrace();
+			e.printStackTrace(System.out);
 
-          throttleNanos(startTimeNanos);
-        }
-      } else {
-        long startTimeNanos = System.nanoTime();
+			return;
+		}
 
-        while (((opcount == 0) || (opsdone < opcount)) && !workload.isStopRequested()) {
+		// NOTE: Switching to using nanoTime and parkNanos for time management here such that the measurements
+		// and the client thread have the same view on time.
 
-          if (!workload.doInsert(db, workloadstate)) {
-            break;
-          }
+		// Spread the thread operations out so they don't all hit the DB at the same time
+		// GH issue 4 - throws exception if _target > 1 because random.nextInt argument must be > 0
+		// and the sleep() doesn't make sense for granularities < 1 ms anyway
+		if (targetOpsPerMs > 0 && targetOpsPerMs <= 1.0) {
+			long randomMinorDelay = ThreadLocalRandom.current().nextInt((int) targetOpsTickNanos);
 
-          opsdone++;
+			sleepUntil(System.nanoTime() + randomMinorDelay);
+		}
 
-          throttleNanos(startTimeNanos);
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      e.printStackTrace(System.out);
-      System.exit(0);
-    }
+		try {
+			long startTimeNanos = System.nanoTime();
 
-    try {
-      measurements.setIntendedStartTimeNs(0);
-      db.cleanup();
-    } catch (DBException e) {
-      e.printStackTrace();
-      e.printStackTrace(System.out);
-    } finally {
-      completeLatch.countDown();
-    }
-  }
+			if (transactions) {
+				while ((opCount == 0 || opsDone < opCount) && !workload.isStopRequested()) {
+					if (!workload.doTransaction(db, state)) {
+						break;
+					}
 
-  private static void sleepUntil(long deadline) {
-    while (System.nanoTime() < deadline) {
-      if (!spinSleep) {
-        LockSupport.parkNanos(deadline - System.nanoTime());
-      }
-    }
-  }
+					opsDone++;
+					throttleNanos(startTimeNanos);
+				}
+			} else {
+				while ((opCount == 0 || opsDone < opCount) && !workload.isStopRequested()) {
+					if (!workload.doInsert(db, state)) {
+						break;
+					}
 
-  private void throttleNanos(long startTimeNanos) {
-    //throttle the operations
-    if (targetOpsPerMs > 0) {
-      // delay until next tick
-      long deadline = startTimeNanos + opsdone * targetOpsTickNs;
-      sleepUntil(deadline);
-      measurements.setIntendedStartTimeNs(deadline);
-    }
-  }
+					opsDone++;
+					throttleNanos(startTimeNanos);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			e.printStackTrace(System.out);
 
-  /**
-   * The total amount of work this thread is still expected to do.
-   */
-  int getOpsTodo() {
-    int todo = opcount - opsdone;
-    return todo < 0 ? 0 : todo;
-  }
+			System.exit(0);
+		}
+
+		try {
+			measurements.setIntendedStartTimeNanos(0);
+
+			db.cleanup();
+		} catch (DBException e) {
+			e.printStackTrace();
+			e.printStackTrace(System.out);
+		} finally {
+			completeLatch.countDown();
+		}
+	}
+
+	private static void sleepUntil(long deadline) {
+		while (System.nanoTime() < deadline) {
+			if (!spinSleep) {
+				LockSupport.parkNanos(deadline - System.nanoTime());
+			}
+		}
+	}
+
+	private void throttleNanos(long startTimeNanos) {
+		if (targetOpsPerMs > 0) {
+			// Delay until next tick
+			long deadline = startTimeNanos + opsDone * targetOpsTickNanos;
+
+			sleepUntil(deadline);
+
+			measurements.setIntendedStartTimeNanos(deadline);
+		}
+	}
+
+	/**
+	 * The total amount of work this thread is still expected to do.
+	 */
+	int remainingOps() {
+		return Math.max(opCount - opsDone, 0);
+	}
 }

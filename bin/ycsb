@@ -51,9 +51,9 @@ COMMANDS = {
 }
 
 DATABASES = {
-    "basic"        : "site.ycsb.BasicDB",
-    "basicts"      : "site.ycsb.BasicTSDB",
-    "cassandra-cql": "site.ycsb.db.CassandraCQLClient"
+    "basic"    : "site.ycsb.BasicDB",
+    "basicts"  : "site.ycsb.BasicTSDB",
+    "cassandra": "site.ycsb.db.CassandraClient"
 }
 
 OPTIONS = {
@@ -160,8 +160,8 @@ def is_distribution():
 # Given module is full module name eg. 'core' or 'couchbase-binding'
 def get_classpath_from_maven(module):
     try:
-        debug("Running 'mvn -pl site.ycsb:" + module + " -am package -DskipTests "
-              "dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true'")
+        #debug("Running 'mvn -pl site.ycsb:" + module + " -am package -DskipTests "
+        #      "dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true'")
         mvn_output = check_output(["mvn", "-pl", "site.ycsb:" + module,
                                    "-am", "package", "-DskipTests",
                                    "dependency:build-classpath",
@@ -218,9 +218,9 @@ def main():
         cp.extend(find_jars(os.path.join(ycsb_home, "lib")))
         cp.extend(find_jars(os.path.join(db_dir, "lib")))
     else:
-        warn("Running against a source checkout. In order to get our runtime "
-             "dependencies we'll have to invoke Maven. Depending on the state "
-             "of your system, this may take ~30-45 seconds")
+        #warn("Running against a source checkout. In order to get our runtime "
+        #     "dependencies we'll have to invoke Maven. Depending on the state "
+        #     "of your system, this may take ~30-45 seconds")
         db_location = "core" if (binding == "basic" or binding == "basicts") else binding
         project = "core" if (binding == "basic" or binding == "basicts") else binding + "-binding"
         db_dir = os.path.join(ycsb_home, db_location)
@@ -241,7 +241,7 @@ def main():
                      main_classname, "-db", db_classname] + remaining)
     if command:
         ycsb_command.append(command)
-    print >> sys.stderr, " ".join(ycsb_command)
+    # print >> sys.stderr, " ".join(ycsb_command)
     try:
         return subprocess.call(ycsb_command)
     except OSError as e:

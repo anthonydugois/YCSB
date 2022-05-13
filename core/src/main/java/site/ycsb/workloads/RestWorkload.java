@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 
 package site.ycsb.workloads;
 
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import site.ycsb.generator.UniformLongGenerator;
+*/
 /**
  * Typical RESTFul services benchmarking scenario. Represents a set of client
  * calling REST operations like HTTP DELETE, GET, POST, PUT on a web service.
@@ -38,37 +40,48 @@ import site.ycsb.generator.UniformLongGenerator;
  * designed for databases benchmarking. However due to some reusable
  * functionality this class extends {@link CoreWorkload} and overrides necessary
  * methods like init, doTransaction etc.
- */
+ *//*
+
 public class RestWorkload extends CoreWorkload {
 
-  /**
+  */
+/**
    * The name of the property for the proportion of transactions that are
    * delete.
-   */
+   *//*
+
   public static final String DELETE_PROPORTION_PROPERTY = "deleteproportion";
 
-  /**
+  */
+/**
    * The default proportion of transactions that are delete.
-   */
+   *//*
+
   public static final String DELETE_PROPORTION_PROPERTY_DEFAULT = "0.00";
 
-  /**
+  */
+/**
    * The name of the property for the file that holds the field length size for insert operations.
-   */
+   *//*
+
   public static final String FIELD_LENGTH_DISTRIBUTION_FILE_PROPERTY = "fieldlengthdistfile";
 
-  /**
+  */
+/**
    * The default file name that holds the field length size for insert operations.
-   */
+   *//*
+
   public static final String FIELD_LENGTH_DISTRIBUTION_FILE_PROPERTY_DEFAULT = "fieldLengthDistFile.txt";
 
-  /**
+  */
+/**
    * In web services even though the CRUD operations follow the same request
    * distribution, they have different traces and distribution parameter
    * values. Hence configuring the parameters of these operations separately
    * makes the benchmark more flexible and capable of generating better
    * realistic workloads.
-   */
+   *//*
+
   // Read related properties.
   private static final String READ_TRACE_FILE = "url.trace.read";
   private static final String READ_TRACE_FILE_DEFAULT = "readtrace.txt";
@@ -112,44 +125,44 @@ public class RestWorkload extends CoreWorkload {
   private DiscreteGenerator operationchooser;
 
   @Override
-  public void init(Properties p) throws WorkloadException {
+  public void init(Properties props) throws WorkloadException {
 
-    readRecordCount = Integer.parseInt(p.getProperty(READ_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
+    readRecordCount = Integer.parseInt(props.getProperty(READ_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
     insertRecordCount = Integer
-      .parseInt(p.getProperty(INSERT_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
+      .parseInt(props.getProperty(INSERT_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
     deleteRecordCount = Integer
-      .parseInt(p.getProperty(DELETE_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
+      .parseInt(props.getProperty(DELETE_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
     updateRecordCount = Integer
-      .parseInt(p.getProperty(UPDATE_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
+      .parseInt(props.getProperty(UPDATE_RECORD_COUNT_PROPERTY, String.valueOf(Integer.MAX_VALUE)));
 
-    readUrlMap = getTrace(p.getProperty(READ_TRACE_FILE, READ_TRACE_FILE_DEFAULT), readRecordCount);
-    insertUrlMap = getTrace(p.getProperty(INSERT_TRACE_FILE, INSERT_TRACE_FILE_DEFAULT), insertRecordCount);
-    deleteUrlMap = getTrace(p.getProperty(DELETE_TRACE_FILE, DELETE_TRACE_FILE_DEFAULT), deleteRecordCount);
-    updateUrlMap = getTrace(p.getProperty(UPDATE_TRACE_FILE, UPDATE_TRACE_FILE_DEFAULT), updateRecordCount);
+    readUrlMap = getTrace(props.getProperty(READ_TRACE_FILE, READ_TRACE_FILE_DEFAULT), readRecordCount);
+    insertUrlMap = getTrace(props.getProperty(INSERT_TRACE_FILE, INSERT_TRACE_FILE_DEFAULT), insertRecordCount);
+    deleteUrlMap = getTrace(props.getProperty(DELETE_TRACE_FILE, DELETE_TRACE_FILE_DEFAULT), deleteRecordCount);
+    updateUrlMap = getTrace(props.getProperty(UPDATE_TRACE_FILE, UPDATE_TRACE_FILE_DEFAULT), updateRecordCount);
 
-    operationchooser = createOperationGenerator(p);
+    operationchooser = createOperationGenerator(props);
 
     // Common distribution for all operations.
-    String requestDistrib = p.getProperty(REQUEST_DISTRIBUTION_PROPERTY, REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
+    String requestDistrib = props.getProperty(REQUEST_DISTRIBUTION_PROPERTY, REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
 
-    double readZipfconstant = Double.parseDouble(p.getProperty(READ_ZIPFIAN_CONSTANT, READ_ZIPFIAN_CONSTANT_DEAFULT));
-    readKeyChooser = getKeyChooser(requestDistrib, readUrlMap.size(), readZipfconstant, p);
+    double readZipfconstant = Double.parseDouble(props.getProperty(READ_ZIPFIAN_CONSTANT, READ_ZIPFIAN_CONSTANT_DEAFULT));
+    readKeyChooser = getKeyChooser(requestDistrib, readUrlMap.size(), readZipfconstant, props);
     double updateZipfconstant = Double
-        .parseDouble(p.getProperty(UPDATE_ZIPFIAN_CONSTANT, UPDATE_ZIPFIAN_CONSTANT_DEAFULT));
-    updateKeyChooser = getKeyChooser(requestDistrib, updateUrlMap.size(), updateZipfconstant, p);
+        .parseDouble(props.getProperty(UPDATE_ZIPFIAN_CONSTANT, UPDATE_ZIPFIAN_CONSTANT_DEAFULT));
+    updateKeyChooser = getKeyChooser(requestDistrib, updateUrlMap.size(), updateZipfconstant, props);
     double insertZipfconstant = Double
-        .parseDouble(p.getProperty(INSERT_ZIPFIAN_CONSTANT, INSERT_ZIPFIAN_CONSTANT_DEAFULT));
-    insertKeyChooser = getKeyChooser(requestDistrib, insertUrlMap.size(), insertZipfconstant, p);
+        .parseDouble(props.getProperty(INSERT_ZIPFIAN_CONSTANT, INSERT_ZIPFIAN_CONSTANT_DEAFULT));
+    insertKeyChooser = getKeyChooser(requestDistrib, insertUrlMap.size(), insertZipfconstant, props);
     double deleteZipfconstant = Double
-        .parseDouble(p.getProperty(DELETE_ZIPFIAN_CONSTANT, DELETE_ZIPFIAN_CONSTANT_DEAFULT));
-    deleteKeyChooser = getKeyChooser(requestDistrib, deleteUrlMap.size(), deleteZipfconstant, p);
+        .parseDouble(props.getProperty(DELETE_ZIPFIAN_CONSTANT, DELETE_ZIPFIAN_CONSTANT_DEAFULT));
+    deleteKeyChooser = getKeyChooser(requestDistrib, deleteUrlMap.size(), deleteZipfconstant, props);
 
-    fieldlengthgenerator = getFieldLengthGenerator(p);
+    fieldlengthgenerator = getFieldLengthGenerator(props);
   }
 
   public static DiscreteGenerator createOperationGenerator(final Properties p) {
     // Re-using CoreWorkload method.
-    final DiscreteGenerator operationChooser = CoreWorkload.createOperationGenerator(p);
+    final DiscreteGenerator operationChooser = CoreWorkload.createOpGenerator(p);
     // Needs special handling for delete operations not supported in CoreWorkload.
     double deleteproportion = Double
         .parseDouble(p.getProperty(DELETE_PROPORTION_PROPERTY, DELETE_PROPORTION_PROPERTY_DEFAULT));
@@ -205,9 +218,11 @@ public class RestWorkload extends CoreWorkload {
     return fieldLengthGenerator;
   }
 
-  /**
+  */
+/**
    * Reads the trace file and returns a URL map.
-   */
+   *//*
+
   private static Map<Integer, String> getTrace(String filePath, int recordCount)
     throws WorkloadException {
     Map<Integer, String> urlMap = new HashMap<Integer, String>();
@@ -231,16 +246,18 @@ public class RestWorkload extends CoreWorkload {
     return urlMap;
   }
 
-  /**
+  */
+/**
    * Not required for Rest Clients as data population is service specific.
-   */
+   *//*
+
   @Override
-  public boolean doInsert(DB db, Object threadstate) {
+  public boolean doInsert(DB db, Object threadState) {
     return false;
   }
 
   @Override
-  public boolean doTransaction(DB db, Object threadstate) {
+  public boolean doTransaction(DB db, Object threadState) {
     String operation = operationchooser.nextString();
     if (operation == null) {
       return false;
@@ -262,9 +279,11 @@ public class RestWorkload extends CoreWorkload {
     return true;
   }
 
-  /**
+  */
+/**
    * Returns next URL to be called.
-   */
+   *//*
+
   private String getNextURL(int opType) {
     if (opType == 1) {
       return readUrlMap.get(readKeyChooser.nextValue().intValue());
@@ -304,3 +323,4 @@ public class RestWorkload extends CoreWorkload {
   }
 
 }
+*/

@@ -23,60 +23,62 @@ import site.ycsb.measurements.exporter.MeasurementsExporter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A single measured metric (such as READ LATENCY).
+ * A single measured metric.
  */
 public abstract class OneMeasurement {
 
-  private final String name;
-  private final ConcurrentHashMap<Status, AtomicInteger> returncodes;
+	private final String name;
+	private final ConcurrentMap<Status, AtomicInteger> returnCodes = new ConcurrentHashMap<>();
 
-  public String getName() {
-    return name;
-  }
+	/**
+	 * @param name measurement name
+	 */
+	public OneMeasurement(String name) {
+		this.name = name;
+	}
 
-  /**
-   * @param name measurement name
-   */
-  public OneMeasurement(String name) {
-    this.name = name;
-    this.returncodes = new ConcurrentHashMap<>();
-  }
+	public abstract void measure(int latency);
 
-  public abstract void measure(int latency);
+	public abstract String getSummary();
 
-  public abstract String getSummary();
+	/**
+	 * Export the current measurements to a suitable format.
+	 *
+	 * @param exporter Exporter representing the type of format to write to.
+	 * @throws IOException Thrown if the export failed.
+	 */
+	public abstract void exportMeasurements(MeasurementsExporter exporter) throws IOException;
 
-  /**
-   * No need for synchronization, using CHM to deal with that.
-   */
-  public void reportStatus(Status status) {
-    AtomicInteger counter = returncodes.get(status);
+	public String getName() {
+		return name;
+	}
 
-    if (counter == null) {
-      counter = new AtomicInteger();
-      AtomicInteger other = returncodes.putIfAbsent(status, counter);
-      if (other != null) {
-        counter = other;
-      }
-    }
+	/**
+	 * No need for synchronization, using CHM to deal with that.
+	 */
+	public void reportStatus(Status status) {
+		AtomicInteger counter = returnCodes.get(status);
 
-    counter.incrementAndGet();
-  }
+		if (counter == null) {
+			counter = new AtomicInteger();
 
-  /**
-   * Export the current measurements to a suitable format.
-   *
-   * @param exporter Exporter representing the type of format to write to.
-   * @throws IOException Thrown if the export failed.
-   */
-  public abstract void exportMeasurements(MeasurementsExporter exporter) throws IOException;
+			AtomicInteger prevCounter = returnCodes.putIfAbsent(status, counter);
 
-  protected final void exportStatusCounts(MeasurementsExporter exporter) throws IOException {
-    for (Map.Entry<Status, AtomicInteger> entry : returncodes.entrySet()) {
-      exporter.write(getName(), "Return=" + entry.getKey().getName(), entry.getValue().get());
-    }
-  }
+			if (prevCounter != null) {
+				counter = prevCounter;
+			}
+		}
+
+		counter.incrementAndGet();
+	}
+
+	protected final void exportStatusCounts(MeasurementsExporter exporter) throws IOException {
+		for (Map.Entry<Status, AtomicInteger> entry : returnCodes.entrySet()) {
+			exporter.write(getName(), "Return=" + entry.getKey().getName(), entry.getValue().get());
+		}
+	}
 }

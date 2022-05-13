@@ -25,7 +25,6 @@ import java.util.Properties;
 
 /**
  * Take measurements and maintain a histogram of a given metric, such as READ LATENCY.
- *
  */
 public class OneMeasurementHistogram extends OneMeasurement {
   public static final String BUCKETS = "histogram.buckets";

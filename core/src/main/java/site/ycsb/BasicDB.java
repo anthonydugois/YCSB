@@ -13,7 +13,73 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ * <p>
+ * Basic DB that just prints out the requested operations, instead of doing them against a database.
+ * <p>
+ * Initialize any state for this DB.
+ * Called once per DB instance; there is one DB instance per client thread.
+ * <p>
+ * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
+ *
+ * @param table  The name of the table
+ * @param key    The record key of the record to read.
+ * @param fields The list of fields to read, or null for all of them
+ * @param result A HashMap of field/value pairs for the result
+ * @return Zero on success, a non-zero error code on error
+ * <p>
+ * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored
+ * in a HashMap.
+ * @param table       The name of the table
+ * @param startkey    The record key of the first record to read.
+ * @param recordcount The number of records to read
+ * @param fields      The list of fields to read, or null for all of them
+ * @param result      A Vector of HashMaps, where each HashMap is a set field/value pairs for one record
+ * @return Zero on success, a non-zero error code on error
+ * <p>
+ * Update a record in the database. Any field/value pairs in the specified values HashMap will be written into the
+ * record with the specified record key, overwriting any existing values with the same field name.
+ * @param table  The name of the table
+ * @param key    The record key of the record to write.
+ * @param values A HashMap of field/value pairs to update in the record
+ * @return Zero on success, a non-zero error code on error
+ * <p>
+ * Insert a record in the database. Any field/value pairs in the specified values HashMap will be written into the
+ * record with the specified record key.
+ * @param table  The name of the table
+ * @param key    The record key of the record to insert.
+ * @param values A HashMap of field/value pairs to insert in the record
+ * @return Zero on success, a non-zero error code on error
+ * <p>
+ * Delete a record from the database.
+ * @param table The name of the table
+ * @param key   The record key of the record to delete.
+ * @return Zero on success, a non-zero error code on error
+ * <p>
+ * Increments the count on the hash in the map.
+ * @param map A non-null map to sync and use for incrementing.
+ * @param hash A hash code to increment.
+ * <p>
+ * Hashes the table, key and fields, sorting the fields first for a consistent
+ * hash.
+ * Note that this is expensive as we generate a copy of the fields and a string
+ * buffer to hash on. Hashing on the objects is problematic.
+ * @param table The user table.
+ * @param key The key read or scanned.
+ * @param fields The fields read or scanned.
+ * @return The hash code.
+ * <p>
+ * Hashes the table, key and fields, sorting the fields first for a consistent
+ * hash.
+ * Note that this is expensive as we generate a copy of the fields and a string
+ * buffer to hash on. Hashing on the objects is problematic.
+ * @param table The user table.
+ * @param key The key read or scanned.
+ * @param values The values to hash on.
+ * @return The hash code.
+ * <p>
+ * Short test of BasicDB
+ *//*
+
 
 package site.ycsb;
 
@@ -24,9 +90,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+*/
 /**
  * Basic DB that just prints out the requested operations, instead of doing them against a database.
- */
+ *//*
+
 public class BasicDB extends DB {
   public static final String COUNT = "basicdb.count";
   public static final String COUNT_DEFAULT = "false";
@@ -76,10 +144,12 @@ public class BasicDB extends DB {
     }
   }
 
-  /**
-   * Initialize any state for this DB.
-   * Called once per DB instance; there is one DB instance per client thread.
-   */
+  */
+/**
+ * Initialize any state for this DB.
+ * Called once per DB instance; there is one DB instance per client thread.
+ *//*
+
   public void init() {
     verbose = Boolean.parseBoolean(getProperties().getProperty(VERBOSE, VERBOSE_DEFAULT));
     todelay = Integer.parseInt(getProperties().getProperty(SIMULATE_DELAY, SIMULATE_DELAY_DEFAULT));
@@ -124,15 +194,17 @@ public class BasicDB extends DB {
     return sb;
   }
 
-  /**
-   * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
-   *
-   * @param table  The name of the table
-   * @param key    The record key of the record to read.
-   * @param fields The list of fields to read, or null for all of them
-   * @param result A HashMap of field/value pairs for the result
-   * @return Zero on success, a non-zero error code on error
-   */
+  */
+/**
+ * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
+ *
+ * @param table  The name of the table
+ * @param key    The record key of the record to read.
+ * @param fields The list of fields to read, or null for all of them
+ * @param result A HashMap of field/value pairs for the result
+ * @return Zero on success, a non-zero error code on error
+ *//*
+
   public Status read(String table, String key, Set<String> fields, Map<String, ByteIterator> result) {
     delay();
 
@@ -158,17 +230,19 @@ public class BasicDB extends DB {
     return Status.OK;
   }
 
-  /**
-   * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored
-   * in a HashMap.
-   *
-   * @param table       The name of the table
-   * @param startkey    The record key of the first record to read.
-   * @param recordcount The number of records to read
-   * @param fields      The list of fields to read, or null for all of them
-   * @param result      A Vector of HashMaps, where each HashMap is a set field/value pairs for one record
-   * @return Zero on success, a non-zero error code on error
-   */
+  */
+/**
+ * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored
+ * in a HashMap.
+ *
+ * @param table       The name of the table
+ * @param startkey    The record key of the first record to read.
+ * @param recordcount The number of records to read
+ * @param fields      The list of fields to read, or null for all of them
+ * @param result      A Vector of HashMaps, where each HashMap is a set field/value pairs for one record
+ * @return Zero on success, a non-zero error code on error
+ *//*
+
   public Status scan(String table, String startkey, int recordcount, Set<String> fields,
                      Vector<HashMap<String, ByteIterator>> result) {
     delay();
@@ -195,15 +269,17 @@ public class BasicDB extends DB {
     return Status.OK;
   }
 
-  /**
-   * Update a record in the database. Any field/value pairs in the specified values HashMap will be written into the
-   * record with the specified record key, overwriting any existing values with the same field name.
-   *
-   * @param table  The name of the table
-   * @param key    The record key of the record to write.
-   * @param values A HashMap of field/value pairs to update in the record
-   * @return Zero on success, a non-zero error code on error
-   */
+  */
+/**
+ * Update a record in the database. Any field/value pairs in the specified values HashMap will be written into the
+ * record with the specified record key, overwriting any existing values with the same field name.
+ *
+ * @param table  The name of the table
+ * @param key    The record key of the record to write.
+ * @param values A HashMap of field/value pairs to update in the record
+ * @return Zero on success, a non-zero error code on error
+ *//*
+
   public Status update(String table, String key, Map<String, ByteIterator> values) {
     delay();
 
@@ -226,15 +302,17 @@ public class BasicDB extends DB {
     return Status.OK;
   }
 
-  /**
-   * Insert a record in the database. Any field/value pairs in the specified values HashMap will be written into the
-   * record with the specified record key.
-   *
-   * @param table  The name of the table
-   * @param key    The record key of the record to insert.
-   * @param values A HashMap of field/value pairs to insert in the record
-   * @return Zero on success, a non-zero error code on error
-   */
+  */
+/**
+ * Insert a record in the database. Any field/value pairs in the specified values HashMap will be written into the
+ * record with the specified record key.
+ *
+ * @param table  The name of the table
+ * @param key    The record key of the record to insert.
+ * @param values A HashMap of field/value pairs to insert in the record
+ * @return Zero on success, a non-zero error code on error
+ *//*
+
   public Status insert(String table, String key, Map<String, ByteIterator> values) {
     delay();
 
@@ -259,13 +337,15 @@ public class BasicDB extends DB {
   }
 
 
-  /**
-   * Delete a record from the database.
-   *
-   * @param table The name of the table
-   * @param key   The record key of the record to delete.
-   * @return Zero on success, a non-zero error code on error
-   */
+  */
+/**
+ * Delete a record from the database.
+ *
+ * @param table The name of the table
+ * @param key   The record key of the record to delete.
+ * @return Zero on success, a non-zero error code on error
+ *//*
+
   public Status delete(String table, String key) {
     delay();
 
@@ -298,11 +378,13 @@ public class BasicDB extends DB {
     }
   }
   
-  /**
-   * Increments the count on the hash in the map.
-   * @param map A non-null map to sync and use for incrementing.
-   * @param hash A hash code to increment.
-   */
+  */
+/**
+ * Increments the count on the hash in the map.
+ * @param map A non-null map to sync and use for incrementing.
+ * @param hash A hash code to increment.
+ *//*
+
   protected void incCounter(final Map<Integer, Integer> map, final int hash) {
     synchronized (map) {
       Integer ctr = map.get(hash);
@@ -314,16 +396,18 @@ public class BasicDB extends DB {
     }
   }
   
-  /**
-   * Hashes the table, key and fields, sorting the fields first for a consistent
-   * hash.
-   * Note that this is expensive as we generate a copy of the fields and a string
-   * buffer to hash on. Hashing on the objects is problematic.
-   * @param table The user table.
-   * @param key The key read or scanned.
-   * @param fields The fields read or scanned.
-   * @return The hash code.
-   */
+  */
+/**
+ * Hashes the table, key and fields, sorting the fields first for a consistent
+ * hash.
+ * Note that this is expensive as we generate a copy of the fields and a string
+ * buffer to hash on. Hashing on the objects is problematic.
+ * @param table The user table.
+ * @param key The key read or scanned.
+ * @param fields The fields read or scanned.
+ * @return The hash code.
+ *//*
+
   protected int hash(final String table, final String key, final Set<String> fields) {
     if (fields == null) {
       return (table + key).hashCode();
@@ -337,16 +421,18 @@ public class BasicDB extends DB {
     return buf.toString().hashCode();
   }
   
-  /**
-   * Hashes the table, key and fields, sorting the fields first for a consistent
-   * hash.
-   * Note that this is expensive as we generate a copy of the fields and a string
-   * buffer to hash on. Hashing on the objects is problematic.
-   * @param table The user table.
-   * @param key The key read or scanned.
-   * @param values The values to hash on.
-   * @return The hash code.
-   */
+  */
+/**
+ * Hashes the table, key and fields, sorting the fields first for a consistent
+ * hash.
+ * Note that this is expensive as we generate a copy of the fields and a string
+ * buffer to hash on. Hashing on the objects is problematic.
+ * @param table The user table.
+ * @param key The key read or scanned.
+ * @param values The values to hash on.
+ * @return The hash code.
+ *//*
+
   protected int hash(final String table, final String key, final Map<String, ByteIterator> values) {
     if (values == null) {
       return (table + key).hashCode();
@@ -363,10 +449,13 @@ public class BasicDB extends DB {
     return buf.toString().hashCode();
   }
   
-  /**
-   * Short test of BasicDB
-   */
-  /*
+  */
+/**
+ * Short test of BasicDB
+ *//*
+
+ */
+/*
   public static void main(String[] args) {
     BasicDB bdb = new BasicDB();
 
@@ -392,5 +481,7 @@ public class BasicDB extends DB {
 
     bdb.delete("table", "key");
   }
-  */
+  *//*
+
 }
+*/

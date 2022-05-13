@@ -17,237 +17,192 @@
 
 package site.ycsb;
 
-import java.util.Map;
-
-import site.ycsb.measurements.Measurements;
 import org.apache.htrace.core.TraceScope;
 import org.apache.htrace.core.Tracer;
+import site.ycsb.measurements.Measurements;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Wrapper around a "real" DB that measures latencies and counts return codes.
  * Also reports latency separately between OK and failed operations.
  */
 public class DBWrapper extends DB {
-  private final DB db;
-  private final Measurements measurements;
-  private final Tracer tracer;
+	private final DB db;
+	private final Measurements measurements;
+	private final Tracer tracer;
 
-  private boolean reportLatencyForEachError = false;
-  private Set<String> latencyTrackedErrors = new HashSet<String>();
+	/*private boolean reportLatencyForEachError = false;
+	private Set<String> latencyTrackedErrors = new HashSet<>();
 
-  private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY = "reportlatencyforeacherror";
-  private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT = "false";
+	private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY = "reportlatencyforeacherror";
+	private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT = "false";
+	private static final String LATENCY_TRACKED_ERRORS_PROPERTY = "latencytrackederrors";
 
-  private static final String LATENCY_TRACKED_ERRORS_PROPERTY = "latencytrackederrors";
+	private static final AtomicBoolean LOG_REPORT_CONFIG = new AtomicBoolean(false);*/
 
-  private static final AtomicBoolean LOG_REPORT_CONFIG = new AtomicBoolean(false);
+	private final String scopeStringCleanup;
+	private final String scopeStringDelete;
+	private final String scopeStringInit;
+	private final String scopeStringInsert;
+	private final String scopeStringRead;
+	private final String scopeStringScan;
+	private final String scopeStringUpdate;
 
-  private final String scopeStringCleanup;
-  private final String scopeStringDelete;
-  private final String scopeStringInit;
-  private final String scopeStringInsert;
-  private final String scopeStringRead;
-  private final String scopeStringScan;
-  private final String scopeStringUpdate;
+	public DBWrapper(final DB db, final Tracer tracer) {
+		this.db = db;
+		this.measurements = Measurements.getMeasurements();
+		this.tracer = tracer;
 
-  public DBWrapper(final DB db, final Tracer tracer) {
-    this.db = db;
-    measurements = Measurements.getMeasurements();
-    this.tracer = tracer;
-    final String simple = db.getClass().getSimpleName();
-    scopeStringCleanup = simple + "#cleanup";
-    scopeStringDelete = simple + "#delete";
-    scopeStringInit = simple + "#init";
-    scopeStringInsert = simple + "#insert";
-    scopeStringRead = simple + "#read";
-    scopeStringScan = simple + "#scan";
-    scopeStringUpdate = simple + "#update";
-  }
+		final String name = db.getClass().getSimpleName();
 
-  /**
-   * Set the properties for this DB.
-   */
-  public void setProperties(Properties p) {
-    db.setProperties(p);
-  }
+		this.scopeStringCleanup = name + "#cleanup";
+		this.scopeStringDelete = name + "#delete";
+		this.scopeStringInit = name + "#init";
+		this.scopeStringInsert = name + "#insert";
+		this.scopeStringRead = name + "#read";
+		this.scopeStringScan = name + "#scan";
+		this.scopeStringUpdate = name + "#update";
+	}
 
-  /**
-   * Get the set of properties for this DB.
-   */
-  public Properties getProperties() {
-    return db.getProperties();
-  }
+	public void setProperties(Properties props) {
+		db.setProperties(props);
+	}
 
-  /**
-   * Initialize any state for this DB.
-   * Called once per DB instance; there is one DB instance per client thread.
-   */
-  public void init() throws DBException {
-    try (final TraceScope span = tracer.newScope(scopeStringInit)) {
-      db.init();
+	public Properties getProperties() {
+		return db.getProperties();
+	}
 
-      this.reportLatencyForEachError = Boolean.parseBoolean(getProperties().
-          getProperty(REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY,
-              REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT));
+	private void measure(String op, Status result, long intendedStartTimeNanos, long startTimeNanos, long endTimeNanos) {
+		String measurementName = op;
 
-      if (!reportLatencyForEachError) {
-        String latencyTrackedErrorsProperty = getProperties().getProperty(LATENCY_TRACKED_ERRORS_PROPERTY, null);
-        if (latencyTrackedErrorsProperty != null) {
-          this.latencyTrackedErrors = new HashSet<String>(Arrays.asList(
-              latencyTrackedErrorsProperty.split(",")));
-        }
-      }
+		if (result == null || !result.isOk()) {
+			/*if (this.reportLatencyForEachError || this.latencyTrackedErrors.contains(result.getName())) {
+				measurementName = op + "-" + result.getName();
+			} else {
+				measurementName = op + "-FAILED";
+			}*/
+			measurementName += "-FAILED";
+		}
 
-      if (LOG_REPORT_CONFIG.compareAndSet(false, true)) {
-        System.err.println("DBWrapper: report latency for each error is " +
-            this.reportLatencyForEachError + " and specific error codes to track" +
-            " for latency are: " + this.latencyTrackedErrors.toString());
-      }
-    }
-  }
+		measurements.measure(measurementName, (int) ((endTimeNanos - startTimeNanos) / 1000));
+		measurements.measureIntended(measurementName, (int) ((endTimeNanos - intendedStartTimeNanos) / 1000));
+	}
 
-  /**
-   * Cleanup any state for this DB.
-   * Called once per DB instance; there is one DB instance per client thread.
-   */
-  public void cleanup() throws DBException {
-    try (final TraceScope span = tracer.newScope(scopeStringCleanup)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      db.cleanup();
-      long en = System.nanoTime();
-      measure("CLEANUP", Status.OK, ist, st, en);
-    }
-  }
+	public void init() throws DBException {
+		try (final TraceScope span = tracer.newScope(scopeStringInit)) {
+			db.init();
 
-  /**
-   * Read a record from the database. Each field/value pair from the result
-   * will be stored in a HashMap.
-   *
-   * @param table The name of the table
-   * @param key The record key of the record to read.
-   * @param fields The list of fields to read, or null for all of them
-   * @param result A HashMap of field/value pairs for the result
-   * @return The result of the operation.
-   */
-  public Status read(String table, String key, Set<String> fields,
-                     Map<String, ByteIterator> result) {
-    try (final TraceScope span = tracer.newScope(scopeStringRead)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      Status res = db.read(table, key, fields, result);
-      long en = System.nanoTime();
-      measure("READ", res, ist, st, en);
-      measurements.reportStatus("READ", res);
-      return res;
-    }
-  }
+			/*this.reportLatencyForEachError = Boolean.parseBoolean(getProperties().getProperty(REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY, REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY_DEFAULT));
 
-  /**
-   * Perform a range scan for a set of records in the database.
-   * Each field/value pair from the result will be stored in a HashMap.
-   *
-   * @param table The name of the table
-   * @param startkey The record key of the first record to read.
-   * @param recordcount The number of records to read
-   * @param fields The list of fields to read, or null for all of them
-   * @param result A Vector of HashMaps, where each HashMap is a set field/value pairs for one record
-   * @return The result of the operation.
-   */
-  public Status scan(String table, String startkey, int recordcount,
-                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
-    try (final TraceScope span = tracer.newScope(scopeStringScan)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      Status res = db.scan(table, startkey, recordcount, fields, result);
-      long en = System.nanoTime();
-      measure("SCAN", res, ist, st, en);
-      measurements.reportStatus("SCAN", res);
-      return res;
-    }
-  }
+			if (!reportLatencyForEachError) {
+				String latencyTrackedErrorsProperty = getProperties().getProperty(LATENCY_TRACKED_ERRORS_PROPERTY, null);
 
-  private void measure(String op, Status result, long intendedStartTimeNanos,
-                       long startTimeNanos, long endTimeNanos) {
-    String measurementName = op;
-    if (result == null || !result.isOk()) {
-      if (this.reportLatencyForEachError ||
-          this.latencyTrackedErrors.contains(result.getName())) {
-        measurementName = op + "-" + result.getName();
-      } else {
-        measurementName = op + "-FAILED";
-      }
-    }
-    measurements.measure(measurementName,
-        (int) ((endTimeNanos - startTimeNanos) / 1000));
-    measurements.measureIntended(measurementName,
-        (int) ((endTimeNanos - intendedStartTimeNanos) / 1000));
-  }
+				if (latencyTrackedErrorsProperty != null) {
+					this.latencyTrackedErrors = new HashSet<>(Arrays.asList(latencyTrackedErrorsProperty.split(",")));
+				}
+			}*/
 
-  /**
-   * Update a record in the database. Any field/value pairs in the specified values HashMap will be written into the
-   * record with the specified record key, overwriting any existing values with the same field name.
-   *
-   * @param table The name of the table
-   * @param key The record key of the record to write.
-   * @param values A HashMap of field/value pairs to update in the record
-   * @return The result of the operation.
-   */
-  public Status update(String table, String key,
-                       Map<String, ByteIterator> values) {
-    try (final TraceScope span = tracer.newScope(scopeStringUpdate)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      Status res = db.update(table, key, values);
-      long en = System.nanoTime();
-      measure("UPDATE", res, ist, st, en);
-      measurements.reportStatus("UPDATE", res);
-      return res;
-    }
-  }
+			/*if (LOG_REPORT_CONFIG.compareAndSet(false, true)) {
+				System.err.println("DBWrapper: report latency for each error is " +
+						this.reportLatencyForEachError + " and specific error codes to track" +
+						" for latency are: " + this.latencyTrackedErrors.toString());
+			}*/
+		}
+	}
 
-  /**
-   * Insert a record in the database. Any field/value pairs in the specified
-   * values HashMap will be written into the record with the specified
-   * record key.
-   *
-   * @param table The name of the table
-   * @param key The record key of the record to insert.
-   * @param values A HashMap of field/value pairs to insert in the record
-   * @return The result of the operation.
-   */
-  public Status insert(String table, String key,
-                       Map<String, ByteIterator> values) {
-    try (final TraceScope span = tracer.newScope(scopeStringInsert)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      Status res = db.insert(table, key, values);
-      long en = System.nanoTime();
-      measure("INSERT", res, ist, st, en);
-      measurements.reportStatus("INSERT", res);
-      return res;
-    }
-  }
+	public void cleanup() throws DBException {
+		try (final TraceScope span = tracer.newScope(scopeStringCleanup)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
 
-  /**
-   * Delete a record from the database.
-   *
-   * @param table The name of the table
-   * @param key The record key of the record to delete.
-   * @return The result of the operation.
-   */
-  public Status delete(String table, String key) {
-    try (final TraceScope span = tracer.newScope(scopeStringDelete)) {
-      long ist = measurements.getIntendedStartTimeNs();
-      long st = System.nanoTime();
-      Status res = db.delete(table, key);
-      long en = System.nanoTime();
-      measure("DELETE", res, ist, st, en);
-      measurements.reportStatus("DELETE", res);
-      return res;
-    }
-  }
+			db.cleanup();
+
+			long en = System.nanoTime();
+
+			measure("CLEANUP", Status.OK, ist, st, en);
+		}
+	}
+
+	public Status read(String table, String key, Set<String> fields, Map<String, Object> options,
+					   Map<String, ByteIterator> result) {
+		try (final TraceScope span = tracer.newScope(scopeStringRead)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
+
+			Status status = db.read(table, key, fields, options, result);
+
+			long en = System.nanoTime();
+
+			measure("READ", status, ist, st, en);
+			measurements.reportStatus("READ", status);
+
+			return status;
+		}
+	}
+
+	public Status scan(String table, String startkey, int recordcount, Set<String> fields,
+					   Vector<HashMap<String, ByteIterator>> result) {
+		try (final TraceScope span = tracer.newScope(scopeStringScan)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
+
+			Status res = db.scan(table, startkey, recordcount, fields, result);
+
+			long en = System.nanoTime();
+
+			measure("SCAN", res, ist, st, en);
+			measurements.reportStatus("SCAN", res);
+
+			return res;
+		}
+	}
+
+	public Status update(String table, String key, Map<String, ByteIterator> values) {
+		try (final TraceScope span = tracer.newScope(scopeStringUpdate)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
+
+			Status res = db.update(table, key, values);
+
+			long en = System.nanoTime();
+
+			measure("UPDATE", res, ist, st, en);
+			measurements.reportStatus("UPDATE", res);
+
+			return res;
+		}
+	}
+
+	public Status insert(String table, String key, Map<String, ByteIterator> values, Map<String, Object> options) {
+		try (final TraceScope span = tracer.newScope(scopeStringInsert)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
+
+			Status status = db.insert(table, key, values, options);
+
+			long en = System.nanoTime();
+
+			measure("INSERT", status, ist, st, en);
+			measurements.reportStatus("INSERT", status);
+
+			return status;
+		}
+	}
+
+	public Status delete(String table, String key) {
+		try (final TraceScope span = tracer.newScope(scopeStringDelete)) {
+			long ist = measurements.getIntendedStartTimeNanos();
+			long st = System.nanoTime();
+
+			Status res = db.delete(table, key);
+
+			long en = System.nanoTime();
+
+			measure("DELETE", res, ist, st, en);
+			measurements.reportStatus("DELETE", res);
+
+			return res;
+		}
+	}
 }

@@ -25,27 +25,23 @@ import java.util.Properties;
  * Creates a DB layer by dynamically classloading the specified DB class.
  */
 public final class DBFactory {
-  private DBFactory() {
-    // not used
-  }
+	public static DB createDB(String dbName, Properties props, final Tracer tracer) throws UnknownDBException {
+		ClassLoader classLoader = DBFactory.class.getClassLoader();
 
-  public static DB newDB(String dbname, Properties properties, final Tracer tracer) throws UnknownDBException {
-    ClassLoader classLoader = DBFactory.class.getClassLoader();
+		DB db;
 
-    DB ret;
+		try {
+			Class<?> dbclass = classLoader.loadClass(dbName);
 
-    try {
-      Class dbclass = classLoader.loadClass(dbname);
+			db = (DB) dbclass.newInstance();
+		} catch (Exception e) {
+			e.printStackTrace();
 
-      ret = (DB) dbclass.newInstance();
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
-    }
+			return null;
+		}
 
-    ret.setProperties(properties);
+		db.setProperties(props);
 
-    return new DBWrapper(ret, tracer);
-  }
-
+		return new DBWrapper(db, tracer);
+	}
 }

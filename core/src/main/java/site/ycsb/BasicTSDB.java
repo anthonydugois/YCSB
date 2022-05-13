@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 package site.ycsb;
 
 import java.util.HashMap;
@@ -25,13 +26,17 @@ import java.util.TreeMap;
 
 import site.ycsb.workloads.TimeSeriesWorkload;
 
+*/
 /**
  * Basic DB for printing out time series workloads and/or tracking the distribution
  * of keys and fields.
- */
+ *//*
+
 public class BasicTSDB extends BasicDB {
 
-  /** Time series workload specific counters. */
+  */
+/** Time series workload specific counters. *//*
+
   protected static Map<Long, Integer> timestamps;
   protected static Map<Integer, Integer> floats;
   protected static Map<Integer, Integer> integers;
@@ -270,4 +275,4 @@ public class BasicTSDB extends BasicDB {
     return buf.toString().hashCode();
   }
   
-}
+}*/

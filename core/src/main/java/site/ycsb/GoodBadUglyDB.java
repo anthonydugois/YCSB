@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 
 package site.ycsb;
 
@@ -30,9 +31,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+*/
 /**
  * Basic DB that just prints out the requested operations, instead of doing them against a database.
- */
+ *//*
+
 public class GoodBadUglyDB extends DB {
   public static final String SIMULATE_DELAY = "gbudb.delays";
   public static final String SIMULATE_DELAY_DEFAULT = "200,1000,10000,50000,100000";
@@ -76,9 +79,11 @@ public class GoodBadUglyDB extends DB {
 
   }
 
-  /**
+  */
+/**
    * Initialize any state for this DB. Called once per DB instance; there is one DB instance per client thread.
-   */
+   *//*
+
   public void init() {
     int i = 0;
     for (String delay : getProperties().getProperty(SIMULATE_DELAY, SIMULATE_DELAY_DEFAULT).split(",")) {
@@ -86,7 +91,8 @@ public class GoodBadUglyDB extends DB {
     }
   }
 
-  /**
+  */
+/**
    * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
    *
    * @param table The name of the table
@@ -94,13 +100,15 @@ public class GoodBadUglyDB extends DB {
    * @param fields The list of fields to read, or null for all of them
    * @param result A HashMap of field/value pairs for the result
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   public Status read(String table, String key, Set<String> fields, Map<String, ByteIterator> result) {
     delay();
     return Status.OK;
   }
 
-  /**
+  */
+/**
    * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored
    * in a HashMap.
    *
@@ -110,7 +118,8 @@ public class GoodBadUglyDB extends DB {
    * @param fields The list of fields to read, or null for all of them
    * @param result A Vector of HashMaps, where each HashMap is a set field/value pairs for one record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   public Status scan(String table, String startkey, int recordcount, Set<String> fields,
                      Vector<HashMap<String, ByteIterator>> result) {
     delay();
@@ -118,7 +127,8 @@ public class GoodBadUglyDB extends DB {
     return Status.OK;
   }
 
-  /**
+  */
+/**
    * Update a record in the database. Any field/value pairs in the specified values HashMap will be written into the
    * record with the specified record key, overwriting any existing values with the same field name.
    *
@@ -126,14 +136,16 @@ public class GoodBadUglyDB extends DB {
    * @param key The record key of the record to write.
    * @param values A HashMap of field/value pairs to update in the record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   public Status update(String table, String key, Map<String, ByteIterator> values) {
     delay();
 
     return Status.OK;
   }
 
-  /**
+  */
+/**
    * Insert a record in the database. Any field/value pairs in the specified values HashMap will be written into the
    * record with the specified record key.
    *
@@ -141,21 +153,25 @@ public class GoodBadUglyDB extends DB {
    * @param key The record key of the record to insert.
    * @param values A HashMap of field/value pairs to insert in the record
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   public Status insert(String table, String key, Map<String, ByteIterator> values) {
     delay();
     return Status.OK;
   }
 
-  /**
+  */
+/**
    * Delete a record from the database.
    *
    * @param table The name of the table
    * @param key The record key of the record to delete.
    * @return Zero on success, a non-zero error code on error
-   */
+   *//*
+
   public Status delete(String table, String key) {
     delay();
     return Status.OK;
   }
 }
+*/

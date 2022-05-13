@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License. See accompanying
  * LICENSE file.
- */
+ *//*
+
 
 package site.ycsb;
 
@@ -25,9 +26,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
+*/
 /**
  * A simple command line client to a database, using the appropriate site.ycsb.DB implementation.
- */
+ *//*
+
 public final class CommandLine {
   private CommandLine() {
     //not used
@@ -347,3 +350,4 @@ public final class CommandLine {
 
 
 }
+*/

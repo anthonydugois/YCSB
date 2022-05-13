@@ -13,7 +13,8 @@
  * implied. See the License for the specific language governing                                                                                                                    
  * permissions and limitations under the License. See accompanying                                                                                                                 
  * LICENSE file.                                                                                                                                                                   
- */
+ *//*
+
 package site.ycsb.workloads;
 
 import static org.testng.Assert.assertTrue;
@@ -34,7 +35,7 @@ public class TestCoreWorkload {
     p.setProperty(CoreWorkload.INSERT_PROPORTION_PROPERTY, "0.20");
     p.setProperty(CoreWorkload.SCAN_PROPORTION_PROPERTY, "0.20");
     p.setProperty(CoreWorkload.READMODIFYWRITE_PROPORTION_PROPERTY, "0.20");
-    final DiscreteGenerator generator = CoreWorkload.createOperationGenerator(p);
+    final DiscreteGenerator generator = CoreWorkload.createOpGenerator(p);
     final int[] counts = new int[5];
     
     for (int i = 0; i < 100; ++i) {
@@ -65,6 +66,6 @@ public class TestCoreWorkload {
   
   @Test (expectedExceptions = IllegalArgumentException.class)
   public void createOperationChooserNullProperties() {
-    CoreWorkload.createOperationGenerator(null);
+    CoreWorkload.createOpGenerator(null);
   }
-}
+}*/
