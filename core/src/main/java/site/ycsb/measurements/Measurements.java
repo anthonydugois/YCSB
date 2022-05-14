@@ -120,8 +120,8 @@ public class Measurements {
 		measureProps = props;
 	}
 
-	private OneMeasurement createMeasurement(String name) {
-		switch (measurementType) {
+	private OneMeasurement createMeasurement(MeasurementType type, String name) {
+		switch (type) {
 			case HISTOGRAM:
 				return new OneMeasurementHistogram(name, props);
 			case HDRHISTOGRAM:
@@ -137,6 +137,10 @@ public class Measurements {
 			default:
 				throw new AssertionError("Impossible to be here. Dead code reached. Bugs?");
 		}
+	}
+
+	private OneMeasurement createMeasurement(String name) {
+		return createMeasurement(measurementType, name);
 	}
 
 	private static class StartTimeHolder {
@@ -176,13 +180,13 @@ public class Measurements {
 	/**
 	 * Report a single value of a single metric.
 	 */
-	public void measure(String operation, int latency) {
+	public void measure(MeasurementType type, String name, int latency) {
 		if (measurementInterval == 1) {
 			return;
 		}
 
 		try {
-			getMeasurement(operation).measure(latency);
+			getMeasurement(type, name).measure(latency);
 		} catch (java.lang.ArrayIndexOutOfBoundsException e) {
 			// This seems like a terribly hacky way to cover up for a bug in the measurement code
 			System.out.println("ERROR: java.lang.ArrayIndexOutOfBoundsException - ignoring and continuing");
@@ -190,6 +194,10 @@ public class Measurements {
 			e.printStackTrace();
 			e.printStackTrace(System.out);
 		}
+	}
+
+	public void measure(String name, int latency) {
+		measure(measurementType, name, latency);
 	}
 
 	/**
@@ -211,13 +219,13 @@ public class Measurements {
 		}
 	}
 
-	private OneMeasurement getMeasurement(String operation) {
-		OneMeasurement measurement = measurements.get(operation);
+	public OneMeasurement getMeasurement(MeasurementType type, String name) {
+		OneMeasurement measurement = measurements.get(name);
 
 		if (measurement == null) {
-			measurement = createMeasurement(operation);
+			measurement = createMeasurement(type, name);
 
-			OneMeasurement prevMeasurement = measurements.putIfAbsent(operation, measurement);
+			OneMeasurement prevMeasurement = measurements.putIfAbsent(name, measurement);
 
 			if (prevMeasurement != null) {
 				measurement = prevMeasurement;
@@ -225,6 +233,10 @@ public class Measurements {
 		}
 
 		return measurement;
+	}
+
+	public OneMeasurement getMeasurement(String name) {
+		return getMeasurement(measurementType, name);
 	}
 
 	private OneMeasurement getIntendedMeasurement(String operation) {

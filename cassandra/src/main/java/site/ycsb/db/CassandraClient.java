@@ -243,10 +243,16 @@ public class CassandraClient extends DB {
 		for (ExecutionInfo executionInfo : executionInfos) {
 			TraceInfo traceInfo = new TraceInfo(executionInfo.getTracingId());
 
+			// Warning; this is expensive (blocking request towards Cassandra)
 			QueryTrace queryTrace = executionInfo.getQueryTrace();
 
 			for (TraceEvent event : queryTrace.getEvents()) {
-				traceInfo.register(event.getActivity(), event.getSourceElapsedMicros());
+				traceInfo.registerEvent(event.getActivity(), new TraceInfo.Event(
+						event.getSourceAddress(),
+						event.getThreadName(),
+						event.getTimestamp(),
+						event.getSourceElapsedMicros()
+				));
 			}
 
 			traces.add(traceInfo);

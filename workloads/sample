@@ -13,4 +13,4 @@ insertproportion=0
 
 requestdistribution=zipfian
 
-traceproportion=0.1
+traceproportion=0.01

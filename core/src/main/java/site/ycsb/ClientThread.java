@@ -17,7 +17,6 @@
 
 package site.ycsb;
 
-import site.ycsb.measurements.Measurements;
 import site.ycsb.tracing.TraceInfo;
 
 import java.util.Collection;
@@ -27,7 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * A thread for executing transactions or data inserts to the database.
+ * A thread for executing transactions.
  */
 public class ClientThread implements Runnable {
 	private final DB db;
@@ -35,19 +34,19 @@ public class ClientThread implements Runnable {
 	private final Workload workload;
 	private final Properties props;
 	private final int opCount;
-	private final CountDownLatch completeLatch;
+	//private final CountDownLatch completeLatch;
 
 	private double targetOpsPerMs;
 	private long targetOpsTickNanos;
 	private int opsDone;
-	private long startTime;
-	private long endTime;
-	private final Measurements measurements;
+	private long startTimeMs;
+	private long endTimeMs;
+	//private final Measurements measurements;
 	private int threadId;
 	private int threadCount;
 
 	// should we keep this? probably not
-	private static boolean spinSleep;
+	//private static boolean spinSleep;
 
 	public ClientThread(DB db, boolean transactions, Workload workload, Properties props, int opCount,
 						double threadTargetPerMs, CountDownLatch completeLatch) {
@@ -56,7 +55,7 @@ public class ClientThread implements Runnable {
 		this.workload = workload;
 		this.props = props;
 		this.opCount = opCount;
-		this.completeLatch = completeLatch;
+		//this.completeLatch = completeLatch;
 
 		if (threadTargetPerMs > 0) {
 			this.targetOpsPerMs = threadTargetPerMs;
@@ -64,13 +63,21 @@ public class ClientThread implements Runnable {
 		}
 
 		this.opsDone = 0;
-		this.measurements = Measurements.getMeasurements();
+		//this.measurements = Measurements.getMeasurements();
 
-		spinSleep = Boolean.parseBoolean(this.props.getProperty("spin.sleep", "false"));
+		//spinSleep = Boolean.parseBoolean(this.props.getProperty("spin.sleep", "false"));
+	}
+
+	public int getThreadId() {
+		return threadId;
 	}
 
 	public void setThreadId(final int threadId) {
 		this.threadId = threadId;
+	}
+
+	public int getThreadCount() {
+		return threadCount;
 	}
 
 	public void setThreadCount(final int threadCount) {
@@ -82,7 +89,7 @@ public class ClientThread implements Runnable {
 	}
 
 	public long getRuntime() {
-		return endTime - startTime;
+		return endTimeMs - startTimeMs;
 	}
 
 	public void init() {
@@ -101,9 +108,9 @@ public class ClientThread implements Runnable {
 		} catch (DBException e) {
 			e.printStackTrace();
 			e.printStackTrace(System.out);
-		} finally {
+		}/* finally {
 			//completeLatch.countDown();
-		}
+		}*/
 	}
 
 	public Collection<TraceInfo> getTraces() {
@@ -123,7 +130,7 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
-		startTime = System.currentTimeMillis();
+		startTimeMs = System.currentTimeMillis();
 
 		// NOTE: Switching to using nanoTime and parkNanos for time management here such that the measurements
 		// and the client thread have the same view on time.
@@ -166,14 +173,15 @@ public class ClientThread implements Runnable {
 			System.exit(0);
 		}
 
-		endTime = System.currentTimeMillis();
+		endTimeMs = System.currentTimeMillis();
 	}
 
 	private static void sleepUntil(long deadline) {
 		while (System.nanoTime() < deadline) {
-			if (!spinSleep) {
+			/*if (!spinSleep) {
 				LockSupport.parkNanos(deadline - System.nanoTime());
-			}
+			}*/
+			LockSupport.parkNanos(deadline - System.nanoTime());
 		}
 	}
 
@@ -184,7 +192,7 @@ public class ClientThread implements Runnable {
 
 			sleepUntil(deadline);
 
-			measurements.setIntendedStartTimeNanos(deadline);
+			//measurements.setIntendedStartTimeNanos(deadline);
 		}
 	}
 

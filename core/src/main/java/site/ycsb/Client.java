@@ -20,16 +20,14 @@ package site.ycsb;
 import org.apache.htrace.core.HTraceConfiguration;
 import org.apache.htrace.core.TraceScope;
 import org.apache.htrace.core.Tracer;
-import site.ycsb.measurements.Measurements;
-import site.ycsb.measurements.exporter.MeasurementsExporter;
-import site.ycsb.measurements.exporter.TextMeasurementsExporter;
+import site.ycsb.measures.Exporter;
+import site.ycsb.measures.Measures;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -154,7 +152,7 @@ public final class Client {
 		Properties props = parseArguments(args);
 
 		//boolean status = Boolean.parseBoolean(props.getProperty(STATUS_PROPERTY, "false"));
-		String label = props.getProperty(LABEL_PROPERTY, "");
+		//String label = props.getProperty(LABEL_PROPERTY, "");
 
 		long maxExecutionTime = Integer.parseInt(props.getProperty(MAX_EXECUTION_TIME, "0"));
 
@@ -176,7 +174,7 @@ public final class Client {
 
 		warningThread.start();
 
-		Measurements.setProperties(props);
+		//Measurements.setProperties(props);
 
 		Workload workload = getWorkload(props);
 		final Tracer tracer = getTracer(props, workload);
@@ -199,9 +197,8 @@ public final class Client {
 
 		Thread terminator = null;
 
-		int opsDone = 0;
-		long startTime;
-		long endTime;
+		long startTimeMs;
+		long endTimeMs;
 
 		try (final TraceScope span = tracer.newScope(CLIENT_WORKLOAD_SPAN)) {
 			List<Thread> threads = new ArrayList<>(threadCount);
@@ -212,7 +209,7 @@ public final class Client {
 				threads.add(new Thread(tracer.wrap(client, "ClientThread")));
 			}
 
-			startTime = System.currentTimeMillis();
+			startTimeMs = System.currentTimeMillis();
 
 			for (Thread thread : threads) {
 				thread.start();
@@ -231,13 +228,14 @@ public final class Client {
 				}
 			}
 
-			endTime = System.currentTimeMillis();
+			endTimeMs = System.currentTimeMillis();
 
 			for (ClientThread client : clients) {
 				client.getTraces();
-				client.cleanup();
+			}
 
-				opsDone += client.getOpsDone();
+			for (ClientThread client : clients) {
+				client.cleanup();
 			}
 		}
 
@@ -270,7 +268,7 @@ public final class Client {
 
 		try {
 			try (final TraceScope span = tracer.newScope(CLIENT_EXPORT_MEASUREMENTS_SPAN)) {
-				exportMeasurements(props, opsDone, endTime - startTime);
+				export(props, clients, endTimeMs - startTimeMs);
 			}
 		} catch (IOException e) {
 			System.err.println("Could not export measurements, error: " + e.getMessage());
@@ -297,11 +295,10 @@ public final class Client {
 	 *
 	 * @throws IOException Either failed to write to output stream or failed to close it.
 	 */
-	private static void exportMeasurements(Properties props, int opCount, long runtime) throws IOException {
-		MeasurementsExporter exporter = null;
+	private static void export(Properties props, Collection<ClientThread> clients, long runtime) throws IOException {
+		Exporter exporter = null;
 
 		try {
-			// If no destination file is provided the results will be written to stdout
 			OutputStream out;
 
 			String exportFile = props.getProperty(EXPORT_FILE_PROPERTY);
@@ -312,25 +309,34 @@ public final class Client {
 				out = Files.newOutputStream(Paths.get(exportFile));
 			}
 
-			// If no exporter is provided the default text one will be used
-			String exporterName = props.getProperty(EXPORTER_PROPERTY, "site.ycsb.measurements.exporter.TextMeasurementsExporter");
+			String exporterName = props.getProperty(EXPORTER_PROPERTY, "site.ycsb.measures.Exporter.ConsoleExporter");
 
 			try {
-				exporter = (MeasurementsExporter) Class.forName(exporterName)
-						.getConstructor(OutputStream.class)
-						.newInstance(out);
-			} catch (Exception e) {
-				System.err.println("Could not find exporter " + exporterName + ", will use default text reporter.");
-				e.printStackTrace();
-
-				exporter = new TextMeasurementsExporter(out);
+				exporter = (Exporter) Class.forName(exporterName).getConstructor(OutputStream.class).newInstance(out);
+			} catch (Exception exception) {
+				exporter = new Exporter.ConsoleExporter(out);
 			}
 
-			exporter.write("OVERALL", "operation count", opCount);
-			exporter.write("OVERALL", "runtime (ms)", runtime);
-			exporter.write("OVERALL", "throughput (ops/s)", 1000.0 * opCount / runtime);
+			int opCount = 0;
+			for (ClientThread client : clients) {
+				opCount += client.getOpsDone();
+			}
 
-			final Map<String, Long[]> gcs = Utils.getGCStatst();
+			double throughput = 1000.0 * opCount / runtime;
+
+			exporter.write("[TOTAL] " + opCount + " operations");
+			exporter.write("[TOTAL] runtime : " + runtime + " ms");
+			exporter.write("[TOTAL] throughput : " + throughput + " ops/s");
+
+			for (ClientThread client : clients) {
+				double clientThroughput = 1000.0 * client.getOpsDone() / client.getRuntime();
+
+				exporter.write("[THREAD " + client.getThreadId() + "] " + client.getOpsDone() + " operations");
+				exporter.write("[THREAD " + client.getThreadId() + "] " + client.getRuntime() + " ms");
+				exporter.write("[THREAD " + client.getThreadId() + "] " + clientThroughput + " ops/s");
+			}
+
+			/*final Map<String, Long[]> gcs = Utils.getGCStatst();
 
 			long totalGCCount = 0;
 			long totalGCTime = 0;
@@ -355,9 +361,9 @@ public final class Client {
 				exporter.write("MIN_THREADS", "Count", statusThread.getMinThreads());
 				exporter.write("MAX_SYS_LOAD_AVG", "Load", statusThread.getMaxLoadAvg());
 				exporter.write("MIN_SYS_LOAD_AVG", "Load", statusThread.getMinLoadAvg());
-			}
+			}*/
 
-			Measurements.getMeasurements().exportMeasurements(exporter);
+			Measures.instance.export(exporter);
 		} finally {
 			if (exporter != null) {
 				exporter.close();
