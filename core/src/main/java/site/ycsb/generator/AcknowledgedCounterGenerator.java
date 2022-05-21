@@ -40,11 +40,12 @@ public class AcknowledgedCounterGenerator extends CounterGenerator {
 	/**
 	 * Create a counter that starts at countstart.
 	 */
-	public AcknowledgedCounterGenerator(long countstart) {
-		super(countstart);
+	public AcknowledgedCounterGenerator(long start) {
+		super(start);
+
 		lock = new ReentrantLock();
 		window = new boolean[WINDOW_SIZE];
-		limit = countstart - 1;
+		limit = start - 1;
 	}
 
 	/**
@@ -60,7 +61,8 @@ public class AcknowledgedCounterGenerator extends CounterGenerator {
 	 * Make a generated counter value available via lastInt().
 	 */
 	public void acknowledge(long value) {
-		final int currentSlot = (int) (value & WINDOW_MASK);
+		int currentSlot = (int) (value & WINDOW_MASK);
+
 		if (window[currentSlot]) {
 			throw new RuntimeException("Too many unacknowledged insertion keys.");
 		}
@@ -72,15 +74,19 @@ public class AcknowledgedCounterGenerator extends CounterGenerator {
 			// over to the "limit" variable
 			try {
 				// Only loop through the entire window at most once.
-				long beforeFirstSlot = (limit & WINDOW_MASK);
-				long index;
-				for (index = limit + 1; index != beforeFirstSlot; ++index) {
+				long beforeFirstSlot = limit & WINDOW_MASK;
+				long index = limit + 1;
+
+				while (index != beforeFirstSlot) {
 					int slot = (int) (index & WINDOW_MASK);
+
 					if (!window[slot]) {
 						break;
 					}
 
 					window[slot] = false;
+
+					index++;
 				}
 
 				limit = index - 1;

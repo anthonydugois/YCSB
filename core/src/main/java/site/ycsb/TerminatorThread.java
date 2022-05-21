@@ -25,24 +25,23 @@ import java.util.Collection;
  * The maximum execution time passed is assumed to be in seconds.
  */
 public class TerminatorThread extends Thread {
-
-	private final long maxExecutionTime;
+	private final long maxExecutionTimeSec;
 	private final Collection<? extends Thread> threads;
 	private final Workload workload;
 
-	public TerminatorThread(long maxExecutionTime, Collection<? extends Thread> threads, Workload workload) {
-		this.maxExecutionTime = maxExecutionTime;
+	public TerminatorThread(long maxExecutionTimeSec, Collection<? extends Thread> threads, Workload workload) {
+		this.maxExecutionTimeSec = maxExecutionTimeSec;
 		this.threads = threads;
 		this.workload = workload;
 
-		System.err.println("Maximum execution time specified as: " + maxExecutionTime + " secs");
+		System.err.println("Maximum execution time: " + maxExecutionTimeSec + " secs.");
 	}
 
 	public void run() {
 		try {
-			Thread.sleep(maxExecutionTime * 1000);
+			Thread.sleep(maxExecutionTimeSec * 1000);
 		} catch (InterruptedException e) {
-			System.err.println("Could not wait until max specified time, TerminatorThread interrupted.");
+			System.err.println("Could not wait until max specified time.");
 
 			return;
 		}
@@ -50,8 +49,6 @@ public class TerminatorThread extends Thread {
 		System.err.println("Maximum time elapsed. Requesting stop for the workload.");
 
 		workload.requestStop();
-
-		System.err.println("Stop requested for workload. Now joining!");
 
 		for (Thread thread : threads) {
 			while (thread.isAlive()) {
@@ -62,8 +59,8 @@ public class TerminatorThread extends Thread {
 						System.out.println("Still waiting for thread " + thread.getName() + " to complete. " +
 								"Workload status: " + workload.isStopRequested());
 					}
-				} catch (InterruptedException e) {
-					// Do nothing. Don't know why I was interrupted.
+				} catch (InterruptedException exception) {
+					// Ignored
 				}
 			}
 		}

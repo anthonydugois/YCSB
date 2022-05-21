@@ -34,7 +34,7 @@ public class StatusThread extends Thread {
 	private final CountDownLatch completeLatch;
 
 	// The clients that are running
-	private final List<ClientThread> clients;
+	private final List<Client> clients;
 
 	private final String label;
 
@@ -59,12 +59,12 @@ public class StatusThread extends Thread {
 	private long lastGCCount = 0;
 	private long lastGCTime = 0;
 
-	public StatusThread(CountDownLatch completeLatch, List<ClientThread> clients, String label, boolean stdStatus,
+	public StatusThread(CountDownLatch completeLatch, List<Client> clients, String label, boolean stdStatus,
 						int statusIntervalSeconds) {
 		this(completeLatch, clients, label, stdStatus, statusIntervalSeconds, false);
 	}
 
-	public StatusThread(CountDownLatch completeLatch, List<ClientThread> clients, String label, boolean stdStatus,
+	public StatusThread(CountDownLatch completeLatch, List<Client> clients, String label, boolean stdStatus,
 						int statusIntervalSeconds, boolean trackJVMStats) {
 		this.completeLatch = completeLatch;
 		this.clients = clients;
@@ -128,9 +128,9 @@ public class StatusThread extends Thread {
 		long todoOps = 0;
 
 		// Calculate the total number of operations completed
-		for (ClientThread client : clients) {
+		for (Client client : clients) {
 			totalOps += client.getOpsDone();
-			todoOps += client.remainingOps();
+			todoOps += client.getRemainingOps();
 		}
 
 		long interval = endIntervalMs - startTimeMs;

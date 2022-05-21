@@ -1,16 +1,18 @@
-table=tbl
-
 recordcount=1000
 operationcount=10000
-workload=site.ycsb.workloads.CoreWorkload
 
-readallfields=true
+workload=site.ycsb.workloads.CoreWorkload
+db=site.ycsb.db.CassandraClient
+exporter=site.ycsb.measures.Exporter.ConsoleExporter
+
+table=tbl
+rowlengthdistribution=constant
+rowlength=1000
+fieldprefix=field
+fieldcount=10
 
 readproportion=1
-updateproportion=0
-scanproportion=0
 insertproportion=0
+traceproportion=0.01
 
 requestdistribution=zipfian
-
-traceproportion=0.01

@@ -18,7 +18,6 @@
 package site.ycsb;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.Properties;
 
 /**
  * One experiment scenario. One object of this type will
@@ -35,41 +34,11 @@ import java.util.Properties;
  * client how many inserts to do. In the example above, both clients should have insertcount=500000.
  */
 public abstract class Workload {
-	public static final String INSERT_START_PROPERTY = "insertstart";
-	public static final String INSERT_START_PROPERTY_DEFAULT = "0";
-
-	public static final String INSERT_COUNT_PROPERTY = "insertcount";
-
 	private final AtomicBoolean stopRequested = new AtomicBoolean(false);
 
-	/**
-	 * Initialize the scenario. Create any generators and other shared objects here.
-	 * Called once, in the main client thread, before any operations are started.
-	 */
-	public void init(Properties props) throws WorkloadException {
+	public void init() throws WorkloadException {
 	}
 
-	/**
-	 * Initialize any state for a particular client thread. Since the scenario object
-	 * will be shared among all threads, this is the place to create any state that is specific
-	 * to one thread. To be clear, this means the returned object should be created anew on each
-	 * call to initThread(); do not return the same object multiple times.
-	 * The returned object will be passed to invocations of doInsert() and doTransaction()
-	 * for this thread. There should be no side effects from this call; all state should be encapsulated
-	 * in the returned object. If you have no state to retain for this thread, return null. (But if you have
-	 * no state to retain for this thread, probably you don't need to override initThread().)
-	 *
-	 * @return false if the workload knows it is done for this thread. Client will terminate the thread.
-	 * Return true otherwise. Return true for workloads that rely on operationcount. For workloads that read
-	 * traces from a file, return true when there are more to do, false when you are done.
-	 */
-	public Object initThread(Properties props, int threadId, int threadCount) throws WorkloadException {
-		return null;
-	}
-
-	/**
-	 * Cleanup the scenario. Called once, in the main client thread, after all operations have completed.
-	 */
 	public void cleanup() throws WorkloadException {
 	}
 
@@ -80,7 +49,7 @@ public abstract class Workload {
 	 * effects other than DB operations and mutations on threadstate. Mutations to threadstate do not need to be
 	 * synchronized, since each thread has its own threadstate instance.
 	 */
-	public abstract boolean doInsert(DB db, Object threadState);
+	public abstract boolean doInsert(DB db);
 
 	/**
 	 * Do one transaction operation. Because it will be called concurrently from multiple client threads, this
@@ -93,7 +62,7 @@ public abstract class Workload {
 	 * Return true otherwise. Return true for workloads that rely on operationcount. For workloads that read
 	 * traces from a file, return true when there are more to do, false when you are done.
 	 */
-	public abstract boolean doTransaction(DB db, Object threadState);
+	public abstract boolean doTransaction(DB db);
 
 	/**
 	 * Allows scheduling a request to stop the workload.

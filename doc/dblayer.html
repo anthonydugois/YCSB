@@ -102,7 +102,7 @@ Make sure that the classes for your implementation (or a jar containing those cl
 by your implementation. Now, when you run the YCSB Client, specify the "-db" argument on the command line and provide the fully qualified classname of your
 DB class. For example, to run workloada with your DB class:
 <pre>
-%  java -cp build/ycsb.jar:yourjarpath site.ycsb.Client -t -db com.foo.YourDBClass -P workloads/workloada -P large.dat -s > transactions.dat
+%  java -cp build/ycsb.jar:yourjarpath site.ycsb.Application -t -db com.foo.YourDBClass -P workloads/workloada -P large.dat -s > transactions.dat
 </pre>  
 
 You can also specify the DB interface layer using the DB property in your parameter file:

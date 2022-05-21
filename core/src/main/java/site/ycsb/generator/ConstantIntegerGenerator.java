@@ -18,26 +18,24 @@ package site.ycsb.generator;
 
 /**
  * A trivial integer generator that always returns the same value.
- *
  */
 public class ConstantIntegerGenerator extends NumberGenerator {
-  private final int i;
+	private final int value;
 
-  /**
-   * @param i The integer that this generator will always return.
-   */
-  public ConstantIntegerGenerator(int i) {
-    this.i = i;
-  }
+	/**
+	 * @param value The integer that this generator will always return.
+	 */
+	public ConstantIntegerGenerator(int value) {
+		this.value = value;
+	}
 
-  @Override
-  public Integer nextValue() {
-    return i;
-  }
+	@Override
+	public Integer nextValue() {
+		return value;
+	}
 
-  @Override
-  public double mean() {
-    return i;
-  }
-
+	@Override
+	public double mean() {
+		return value;
+	}
 }

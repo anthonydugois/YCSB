@@ -59,7 +59,6 @@ public abstract class Measure {
 
 		@Override
 		public void export(Exporter exporter) {
-
 			try {
 				for (Object value : values) {
 					exporter.write(format("", value, " us"));

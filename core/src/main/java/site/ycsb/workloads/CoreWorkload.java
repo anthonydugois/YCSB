@@ -21,7 +21,6 @@ import site.ycsb.*;
 import site.ycsb.generator.*;
 import site.ycsb.generator.UniformLongGenerator;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -29,228 +28,218 @@ import java.util.concurrent.ThreadLocalRandom;
  * The core benchmark scenario. Represents a set of clients doing simple CRUD operations. The
  * relative proportion of different kinds of operations, and other properties of the workload,
  * are controlled by parameters specified at runtime.
- * <p>
- * Properties to control the client:
- * <UL>
- * <LI><b>fieldcount</b>: the number of fields in a record (default: 10)
- * <LI><b>fieldlength</b>: the size of each field (default: 100)
- * <LI><b>minfieldlength</b>: the minimum size of each field (default: 1)
- * <LI><b>readallfields</b>: should reads read all fields (true) or just one (false) (default: true)
- * <LI><b>writeallfields</b>: should updates and read/modify/writes update all fields (true) or just
- * one (false) (default: false)
- * <LI><b>readproportion</b>: what proportion of operations should be reads (default: 0.95)
- * <LI><b>updateproportion</b>: what proportion of operations should be updates (default: 0.05)
- * <LI><b>insertproportion</b>: what proportion of operations should be inserts (default: 0)
- * <LI><b>scanproportion</b>: what proportion of operations should be scans (default: 0)
- * <LI><b>readmodifywriteproportion</b>: what proportion of operations should be read a record,
- * modify it, write it back (default: 0)
- * <LI><b>requestdistribution</b>: what distribution should be used to select the records to operate
- * on - uniform, zipfian, hotspot, sequential, exponential or latest (default: uniform)
- * <LI><b>minscanlength</b>: for scans, what is the minimum number of records to scan (default: 1)
- * <LI><b>maxscanlength</b>: for scans, what is the maximum number of records to scan (default: 1000)
- * <LI><b>scanlengthdistribution</b>: for scans, what distribution should be used to choose the
- * number of records to scan, for each scan, between 1 and maxscanlength (default: uniform)
- * <LI><b>insertstart</b>: for parallel loads and runs, defines the starting record for this
- * YCSB instance (default: 0)
- * <LI><b>insertcount</b>: for parallel loads and runs, defines the number of records for this
- * YCSB instance (default: recordcount)
- * <LI><b>zeropadding</b>: for generating a record sequence compatible with string sort order by
- * 0 padding the record number. Controls the number of 0s to use for padding. (default: 1)
- * For example for row 5, with zeropadding=1 you get 'user5' key and with zeropading=8 you get
- * 'user00000005' key. In order to see its impact, zeropadding needs to be bigger than number of
- * digits in the record number.
- * <LI><b>insertorder</b>: should records be inserted in order by key ("ordered"), or in hashed
- * order ("hashed") (default: hashed)
- * <LI><b>fieldnameprefix</b>: what should be a prefix for field names, the shorter may decrease the
- * required storage size (default: "field")
- * </ul>
  */
 public class CoreWorkload extends Workload {
-	/**
-	 * The name of the database table to run queries against.
-	 */
-	public static final String TABLENAME_PROPERTY = "table";
-	public static final String TABLENAME_PROPERTY_DEFAULT = "tbl";
+	private NumberGenerator rowLengthGenerator;
 
-	/**
-	 * The name of the property for the number of fields in a record.
-	 */
-	public static final String FIELD_COUNT_PROPERTY = "fieldcount";
-	public static final String FIELD_COUNT_PROPERTY_DEFAULT = "10";
+	private NumberGenerator loadIdGenerator;
 
-	/**
-	 * The name of the property for the field length distribution. Options are "uniform", "zipfian"
-	 * (favouring short records), "constant", and "histogram".
-	 * <p>
-	 * If "uniform", "zipfian" or "constant", the maximum field length will be that specified by the
-	 * fieldlength property. If "histogram", then the histogram will be read from the filename
-	 * specified in the "fieldlengthhistogram" property.
-	 */
-	public static final String FIELD_LENGTH_DISTRIBUTION_PROPERTY = "fieldlengthdistribution";
-	public static final String FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT = "constant";
+	private NumberGenerator transactionIdGenerator;
 
-	/**
-	 * The name of the property for the length of a field in bytes.
-	 */
-	public static final String FIELD_LENGTH_PROPERTY = "fieldlength";
-	public static final String FIELD_LENGTH_PROPERTY_DEFAULT = "100";
+	private AcknowledgedCounterGenerator transactionInsertIdGenerator;
 
-	/**
-	 * The name of the property for the minimum length of a field in bytes.
-	 */
-	public static final String MIN_FIELD_LENGTH_PROPERTY = "minfieldlength";
-	public static final String MIN_FIELD_LENGTH_PROPERTY_DEFAULT = "1";
+	private DiscreteGenerator opGenerator;
 
-	/**
-	 * The name of a property that specifies the filename containing the field length histogram (only
-	 * used if fieldlengthdistribution is "histogram").
-	 */
-	public static final String FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY = "fieldlengthhistogram";
-	public static final String FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY_DEFAULT = "hist.txt";
-
-	/**
-	 * The name of the property for deciding whether to read one field (false) or all fields (true) of
-	 * a record.
-	 */
-	public static final String READ_ALL_FIELDS_PROPERTY = "readallfields";
-	public static final String READ_ALL_FIELDS_PROPERTY_DEFAULT = "true";
-
-	/**
-	 * The name of the property for determining how to read all the fields when readallfields is true.
-	 * If set to true, all the field names will be passed into the underlying client. If set to false,
-	 * null will be passed into the underlying client. When passed a null, some clients may retrieve
-	 * the entire row with a wildcard, which may be slower than naming all the fields.
-	 */
-	public static final String READ_ALL_FIELDS_BY_NAME_PROPERTY = "readallfieldsbyname";
-	public static final String READ_ALL_FIELDS_BY_NAME_PROPERTY_DEFAULT = "false";
-
-	/**
-	 * The name of the property for deciding whether to write one field (false) or all fields (true)
-	 * of a record.
-	 */
-	public static final String WRITE_ALL_FIELDS_PROPERTY = "writeallfields";
-	public static final String WRITE_ALL_FIELDS_PROPERTY_DEFAULT = "false";
-
-	/**
-	 * The name of the property for the proportion of transactions that are reads.
-	 */
-	public static final String READ_PROPORTION_PROPERTY = "readproportion";
-	public static final String READ_PROPORTION_PROPERTY_DEFAULT = "1.0";
-
-	/**
-	 * The name of the property for the proportion of transactions that are updates.
-	 */
-	public static final String UPDATE_PROPORTION_PROPERTY = "updateproportion";
-	public static final String UPDATE_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-	/**
-	 * The name of the property for the proportion of transactions that are inserts.
-	 */
-	public static final String INSERT_PROPORTION_PROPERTY = "insertproportion";
-	public static final String INSERT_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-	/**
-	 * The name of the property for the proportion of transactions that are scans.
-	 */
-	public static final String SCAN_PROPORTION_PROPERTY = "scanproportion";
-	public static final String SCAN_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-	/**
-	 * The name of the property for the the distribution of requests across the keyspace. Options are
-	 * "uniform", "zipfian" and "latest"
-	 */
-	public static final String REQUEST_DISTRIBUTION_PROPERTY = "requestdistribution";
-	public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT = "uniform";
-
-	/**
-	 * The name of the property for adding zero padding to record numbers in order to match
-	 * string sort order. Controls the number of 0s to left pad with.
-	 */
-	public static final String ZERO_PADDING_PROPERTY = "zeropadding";
-	public static final String ZERO_PADDING_PROPERTY_DEFAULT = "1";
-
-	/**
-	 * The name of the property for the min scan length (number of records).
-	 */
-	public static final String MIN_SCAN_LENGTH_PROPERTY = "minscanlength";
-	public static final String MIN_SCAN_LENGTH_PROPERTY_DEFAULT = "1";
-
-	/**
-	 * The name of the property for the max scan length (number of records).
-	 */
-	public static final String MAX_SCAN_LENGTH_PROPERTY = "maxscanlength";
-	public static final String MAX_SCAN_LENGTH_PROPERTY_DEFAULT = "1000";
-
-	/**
-	 * The name of the property for the scan length distribution. Options are "uniform" and "zipfian"
-	 * (favoring short scans)
-	 */
-	public static final String SCAN_LENGTH_DISTRIBUTION_PROPERTY = "scanlengthdistribution";
-	public static final String SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT = "uniform";
-
-	/**
-	 * The name of the property for the order to insert records. Options are "ordered" or "hashed"
-	 */
-	public static final String INSERT_ORDER_PROPERTY = "insertorder";
-	public static final String INSERT_ORDER_PROPERTY_DEFAULT = "hashed";
-
-	/**
-	 * Percentage data items that constitute the hot set.
-	 */
-	public static final String HOTSPOT_DATA_FRACTION = "hotspotdatafraction";
-	public static final String HOTSPOT_DATA_FRACTION_DEFAULT = "0.2";
-
-	/**
-	 * Percentage operations that access the hot set.
-	 */
-	public static final String HOTSPOT_OPN_FRACTION = "hotspotopnfraction";
-	public static final String HOTSPOT_OPN_FRACTION_DEFAULT = "0.8";
-
-	/**
-	 * Field name prefix.
-	 */
-	public static final String FIELD_NAME_PREFIX = "fieldnameprefix";
-	public static final String FIELD_NAME_PREFIX_DEFAULT = "field";
-
-	/**
-	 * Proportion of requests to trace.
-	 */
-	public static final String TRACE_PROPORTION_PROPERTY = "traceproportion";
-	public static final String TRACE_PROPORTION_PROPERTY_DEFAULT = "0.01";
-
-	protected String table;
+	private long fieldCount;
 
 	private List<String> fieldNames;
 
-	/**
-	 * Generator object that produces field lengths.  The value of this depends on the properties that
-	 * start with "FIELD_LENGTH_".
-	 */
-	protected NumberGenerator fieldLengthGenerator;
+	private String table;
 
-	protected boolean readAllFields;
+	private int zeroPadding;
 
-	protected boolean readAllFieldsByName;
+	private double traceProportion;
 
-	protected boolean writeAllFields;
+	private NumberGenerator getRowLengthGenerator() throws WorkloadException {
+		WorkloadDescriptor.Distribution rowLengthDistribution = WorkloadDescriptor.rowLengthDistribution();
 
-	protected NumberGenerator idGenerator;
-	protected DiscreteGenerator opGenerator;
-	protected NumberGenerator idSelector;
-	protected NumberGenerator fieldSelector;
-	protected AcknowledgedCounterGenerator newIdGenerator;
-	protected NumberGenerator scanLength;
-	protected boolean orderedInserts;
-	protected long fieldCount;
-	protected long recordCount;
-	protected int zeroPadding;
+		int rowLength = WorkloadDescriptor.rowLength();
 
-	protected double traceProportion;
+		int minRowLength = WorkloadDescriptor.minRowLength();
 
-	public static String buildKey(long id, int zeroPadding, boolean orderedInserts) {
-		if (!orderedInserts) {
-			id = Utils.hash(id);
+		NumberGenerator rowLengthGenerator;
+
+		switch (rowLengthDistribution) {
+			case CONSTANT:
+				rowLengthGenerator = new ConstantIntegerGenerator(rowLength);
+				break;
+			case UNIFORM:
+				rowLengthGenerator = new UniformLongGenerator(minRowLength, rowLength);
+				break;
+			default:
+				throw new WorkloadException();
 		}
+
+		return rowLengthGenerator;
+	}
+
+	private NumberGenerator getLoadIdGenerator() {
+		long insertStart = WorkloadDescriptor.insertStart();
+
+		return new CounterGenerator(insertStart);
+	}
+
+	private NumberGenerator getTransactionIdGenerator() throws WorkloadException {
+		WorkloadDescriptor.Distribution requestDistribution = WorkloadDescriptor.requestDistribution();
+
+		long recordCount = WorkloadDescriptor.recordCount();
+
+		if (recordCount <= 0) {
+			recordCount = Integer.MAX_VALUE;
+		}
+
+		long insertStart = WorkloadDescriptor.insertStart();
+		long insertCount = WorkloadDescriptor.insertCount();
+		long insertEnd = insertStart + insertCount;
+
+		if (recordCount < insertEnd) {
+			throw new WorkloadException();
+		}
+
+		NumberGenerator readIdGenerator;
+
+		switch (requestDistribution) {
+			case UNIFORM:
+				readIdGenerator = new UniformLongGenerator(insertStart, insertEnd - 1);
+				break;
+			case SEQUENTIAL:
+				readIdGenerator = new SequentialGenerator(insertStart, insertEnd - 1);
+				break;
+			case ZIPFIAN:
+				readIdGenerator = new ScrambledZipfianGenerator(insertStart, insertEnd);
+				break;
+			default:
+				throw new WorkloadException();
+		}
+
+		/*if (requestDist.compareTo("uniform") == 0) {
+			readIdGenerator = new UniformLongGenerator(insertStart, insertEnd - 1);
+		} else if (requestDist.compareTo("exponential") == 0) {
+			double percentile = Double.parseDouble(props.getProperty(ExponentialGenerator.EXPONENTIAL_PERCENTILE_PROPERTY, ExponentialGenerator.EXPONENTIAL_PERCENTILE_DEFAULT));
+			double frac = Double.parseDouble(props.getProperty(ExponentialGenerator.EXPONENTIAL_FRAC_PROPERTY, ExponentialGenerator.EXPONENTIAL_FRAC_DEFAULT));
+
+			readIdGenerator = new ExponentialGenerator(percentile, recordCount * frac);
+		} else if (requestDist.compareTo("sequential") == 0) {
+			readIdGenerator = new SequentialGenerator(insertStart, insertEnd - 1);
+		} else if (requestDist.compareTo("zipfian") == 0) {
+			double insertProportion = Double.parseDouble(props.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
+			int opCount = Integer.parseInt(props.getProperty(Application.OPERATION_COUNT_PROPERTY));
+			int expectedNewKeys = (int) (opCount * insertProportion * 2.0); // 2 is fudge factor
+
+			readIdGenerator = new ScrambledZipfianGenerator(insertStart, insertEnd + expectedNewKeys);
+		} else {
+			throw new WorkloadException();
+		}*/
+
+		return readIdGenerator;
+	}
+
+	private AcknowledgedCounterGenerator getTransactionInsertIdGenerator() {
+		long recordCount = WorkloadDescriptor.recordCount();
+
+		return new AcknowledgedCounterGenerator(recordCount);
+	}
+
+	private DiscreteGenerator getOpGenerator() {
+		Map<String, Double> proportions = new HashMap<>();
+
+		proportions.put("READ", WorkloadDescriptor.readProportion());
+		proportions.put("INSERT", WorkloadDescriptor.insertProportion());
+
+		DiscreteGenerator opGenerator = new DiscreteGenerator();
+
+		for (Map.Entry<String, Double> entry : proportions.entrySet()) {
+			String op = entry.getKey();
+			double proportion = entry.getValue();
+
+			if (proportion > 0) {
+				opGenerator.addValue(proportion, op);
+			}
+		}
+
+		return opGenerator;
+	}
+
+	private List<String> getFieldNames() {
+		String fieldPrefix = WorkloadDescriptor.fieldPrefix();
+
+		List<String> fieldNames = new ArrayList<>();
+
+		for (int i = 0; i < fieldCount; i++) {
+			fieldNames.add(fieldPrefix + i);
+		}
+
+		return fieldNames;
+	}
+
+	@Override
+	public void init() throws WorkloadException {
+		rowLengthGenerator = getRowLengthGenerator();
+
+		loadIdGenerator = getLoadIdGenerator();
+
+		transactionIdGenerator = getTransactionIdGenerator();
+
+		transactionInsertIdGenerator = getTransactionInsertIdGenerator();
+
+		opGenerator = getOpGenerator();
+
+		fieldCount = WorkloadDescriptor.fieldCount();
+
+		fieldNames = getFieldNames();
+
+		table = WorkloadDescriptor.table();
+
+		zeroPadding = WorkloadDescriptor.zeroPadding();
+
+		traceProportion = WorkloadDescriptor.traceProportion();
+	}
+
+	private Map<String, ByteIterator> createRandomValues() {
+		long rowLength = rowLengthGenerator.nextValue().longValue();
+		long fieldLength = rowLength / fieldCount;
+
+		HashMap<String, ByteIterator> values = new HashMap<>();
+
+		for (String fieldName : fieldNames) {
+			ByteIterator data = new RandomByteIterator(fieldLength);
+
+			values.put(fieldName, data);
+		}
+
+		return values;
+	}
+
+	private String nextOperation() {
+		return opGenerator.nextString();
+	}
+
+	private long nextLoadId() {
+		return loadIdGenerator.nextValue().intValue();
+	}
+
+	private long nextTransactionId() {
+		long id;
+
+		if (transactionIdGenerator instanceof ExponentialGenerator) {
+			do {
+				id = transactionInsertIdGenerator.lastValue() - transactionIdGenerator.nextValue().intValue();
+			} while (id < 0);
+		} else {
+			do {
+				id = transactionIdGenerator.nextValue().intValue();
+			} while (id > transactionInsertIdGenerator.lastValue());
+		}
+
+		return id;
+	}
+
+	private long nextTransactionInsertId() {
+		return transactionInsertIdGenerator.nextValue();
+	}
+
+	private String buildKey(long id) {
+		id = Utils.hash(id);
 
 		String value = Long.toString(id);
 		int fill = zeroPadding - value.length();
@@ -266,216 +255,12 @@ public class CoreWorkload extends Workload {
 		return builder.toString();
 	}
 
-	protected static NumberGenerator getFieldLengthGenerator(Properties props) throws WorkloadException {
-		NumberGenerator fieldLengthGenerator;
-
-		String fieldLengthDist = props.getProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY, FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
-		int fieldLength = Integer.parseInt(props.getProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_PROPERTY_DEFAULT));
-		int minFieldLength = Integer.parseInt(props.getProperty(MIN_FIELD_LENGTH_PROPERTY, MIN_FIELD_LENGTH_PROPERTY_DEFAULT));
-		String fieldLengthHist = props.getProperty(FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY, FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY_DEFAULT);
-
-		if (fieldLengthDist.compareTo("constant") == 0) {
-			fieldLengthGenerator = new ConstantIntegerGenerator(fieldLength);
-		} else if (fieldLengthDist.compareTo("uniform") == 0) {
-			fieldLengthGenerator = new UniformLongGenerator(minFieldLength, fieldLength);
-		} else if (fieldLengthDist.compareTo("zipfian") == 0) {
-			fieldLengthGenerator = new ZipfianGenerator(minFieldLength, fieldLength);
-		} else if (fieldLengthDist.compareTo("histogram") == 0) {
-			try {
-				fieldLengthGenerator = new HistogramGenerator(fieldLengthHist);
-			} catch (IOException e) {
-				throw new WorkloadException("Couldn't read field length histogram file: " + fieldLengthHist, e);
-			}
-		} else {
-			throw new WorkloadException("Unknown field length distribution \"" + fieldLengthDist + "\"");
-		}
-
-		return fieldLengthGenerator;
-	}
-
-	/**
-	 * Initialize the scenario.
-	 * Called once, in the main client thread, before any operations are started.
-	 */
 	@Override
-	public void init(Properties props) throws WorkloadException {
-		table = props.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
+	public boolean doInsert(DB db) {
+		long id = nextLoadId();
 
-		fieldCount = Long.parseLong(props.getProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_PROPERTY_DEFAULT));
-
-		final String fieldPrefix = props.getProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
-
-		fieldNames = new ArrayList<>();
-
-		for (int i = 0; i < fieldCount; i++) {
-			fieldNames.add(fieldPrefix + i);
-		}
-
-		fieldLengthGenerator = getFieldLengthGenerator(props);
-
-		recordCount = Long.parseLong(props.getProperty(Client.RECORD_COUNT_PROPERTY, Client.DEFAULT_RECORD_COUNT));
-
-		if (recordCount == 0) {
-			recordCount = Integer.MAX_VALUE;
-		}
-
-		String requestDist = props.getProperty(REQUEST_DISTRIBUTION_PROPERTY, REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
-
-		int minscanlength = Integer.parseInt(props.getProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_PROPERTY_DEFAULT));
-		int maxscanlength = Integer.parseInt(props.getProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_PROPERTY_DEFAULT));
-		String scanlengthdistrib = props.getProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY, SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
-
-		long insertStart = Long.parseLong(props.getProperty(INSERT_START_PROPERTY, INSERT_START_PROPERTY_DEFAULT));
-		long insertCount = Integer.parseInt(props.getProperty(INSERT_COUNT_PROPERTY, String.valueOf(recordCount - insertStart)));
-
-		// Confirm valid values for insertstart and insertcount in relation to recordcount
-		if (recordCount < (insertStart + insertCount)) {
-			System.err.println("Invalid combination of insertstart, insertcount and recordcount.");
-			System.err.println("recordcount must be bigger than insertstart + insertcount.");
-
-			System.exit(-1);
-		}
-
-		zeroPadding = Integer.parseInt(props.getProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_PROPERTY_DEFAULT));
-
-		readAllFields = Boolean.parseBoolean(props.getProperty(READ_ALL_FIELDS_PROPERTY, READ_ALL_FIELDS_PROPERTY_DEFAULT));
-		readAllFieldsByName = Boolean.parseBoolean(props.getProperty(READ_ALL_FIELDS_BY_NAME_PROPERTY, READ_ALL_FIELDS_BY_NAME_PROPERTY_DEFAULT));
-		writeAllFields = Boolean.parseBoolean(props.getProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_PROPERTY_DEFAULT));
-
-		orderedInserts = props.getProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_PROPERTY_DEFAULT).compareTo("hashed") != 0;
-
-		idGenerator = new CounterGenerator(insertStart);
-
-		newIdGenerator = new AcknowledgedCounterGenerator(recordCount);
-
-		opGenerator = createOpGenerator(props);
-
-		if (requestDist.compareTo("uniform") == 0) {
-			idSelector = new UniformLongGenerator(insertStart, insertStart + insertCount - 1);
-		} else if (requestDist.compareTo("exponential") == 0) {
-			double percentile = Double.parseDouble(props.getProperty(ExponentialGenerator.EXPONENTIAL_PERCENTILE_PROPERTY, ExponentialGenerator.EXPONENTIAL_PERCENTILE_DEFAULT));
-			double frac = Double.parseDouble(props.getProperty(ExponentialGenerator.EXPONENTIAL_FRAC_PROPERTY, ExponentialGenerator.EXPONENTIAL_FRAC_DEFAULT));
-
-			idSelector = new ExponentialGenerator(percentile, recordCount * frac);
-		} else if (requestDist.compareTo("sequential") == 0) {
-			idSelector = new SequentialGenerator(insertStart, insertStart + insertCount - 1);
-		} else if (requestDist.compareTo("zipfian") == 0) {
-			// It does this by generating a random "next key" in part by taking the modulus over the number of keys.
-			// If the number of keys changes, this would shift the modulus, and we don't want that to
-			// change which keys are popular so we'll actually construct the scrambled zipfian generator
-			// with a keyspace that is larger than exists at the beginning of the test.
-			// That is, we'll predict the number of inserts, and tell the scrambled zipfian generator the
-			// number of existing keys plus the number of predicted keys as the total keyspace.
-			// Then, if the generator picks a key that hasn't been inserted yet, will just ignore it and pick
-			// another key.
-			// This way, the size of the keyspace doesn't change from the perspective of the scrambled
-			// zipfian generator.
-			final double insertProportion = Double.parseDouble(props.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
-			int opCount = Integer.parseInt(props.getProperty(Client.OPERATION_COUNT_PROPERTY));
-			int expectedNewKeys = (int) (opCount * insertProportion * 2.0); // 2 is fudge factor
-
-			idSelector = new ScrambledZipfianGenerator(insertStart, insertStart + insertCount + expectedNewKeys);
-		} else if (requestDist.compareTo("latest") == 0) {
-			idSelector = new SkewedLatestGenerator(newIdGenerator);
-		} else if (requestDist.equals("hotspot")) {
-			double hotsetfraction = Double.parseDouble(props.getProperty(HOTSPOT_DATA_FRACTION, HOTSPOT_DATA_FRACTION_DEFAULT));
-			double hotopnfraction = Double.parseDouble(props.getProperty(HOTSPOT_OPN_FRACTION, HOTSPOT_OPN_FRACTION_DEFAULT));
-
-			idSelector = new HotspotIntegerGenerator(insertStart, insertStart + insertCount - 1, hotsetfraction, hotopnfraction);
-		} else {
-			throw new WorkloadException("Unknown request distribution \"" + requestDist + "\"");
-		}
-
-		fieldSelector = new UniformLongGenerator(0, fieldCount - 1);
-
-		if (scanlengthdistrib.compareTo("uniform") == 0) {
-			scanLength = new UniformLongGenerator(minscanlength, maxscanlength);
-		} else if (scanlengthdistrib.compareTo("zipfian") == 0) {
-			scanLength = new ZipfianGenerator(minscanlength, maxscanlength);
-		} else {
-			throw new WorkloadException("Distribution \"" + scanlengthdistrib + "\" not allowed for scan length");
-		}
-
-		traceProportion = Double.parseDouble(props.getProperty(TRACE_PROPORTION_PROPERTY, TRACE_PROPORTION_PROPERTY_DEFAULT));
-	}
-
-	/**
-	 * Builds values for all fields.
-	 */
-	private HashMap<String, ByteIterator> createRandomValues() {
-		HashMap<String, ByteIterator> values = new HashMap<>();
-
-		for (String fieldName : fieldNames) {
-			ByteIterator data = new RandomByteIterator(fieldLengthGenerator.nextValue().longValue());
-
-			values.put(fieldName, data);
-		}
-
-		return values;
-	}
-
-	/**
-	 * Creates a weighted discrete values with database operations for a workload to perform.
-	 * Weights/proportions are read from the properties list and defaults are used
-	 * when values are not configured.
-	 * Current operations are "READ", "UPDATE", "INSERT", "SCAN" and "READMODIFYWRITE".
-	 *
-	 * @param props The properties list to pull weights from.
-	 * @return A generator that can be used to determine the next operation to perform.
-	 * @throws IllegalArgumentException if the properties object was null.
-	 */
-	protected static DiscreteGenerator createOpGenerator(final Properties props) {
-		if (props == null) {
-			throw new IllegalArgumentException("Properties object cannot be null");
-		}
-
-		Map<String, Double> proportions = new HashMap<>();
-
-		proportions.put("READ", Double.parseDouble(props.getProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_PROPERTY_DEFAULT)));
-		proportions.put("UPDATE", Double.parseDouble(props.getProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_PROPERTY_DEFAULT)));
-		proportions.put("INSERT", Double.parseDouble(props.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT)));
-		proportions.put("SCAN", Double.parseDouble(props.getProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_PROPERTY_DEFAULT)));
-
-		final DiscreteGenerator opGenerator = new DiscreteGenerator();
-
-		for (Map.Entry<String, Double> entry : proportions.entrySet()) {
-			String op = entry.getKey();
-			double proportion = entry.getValue();
-
-			if (proportion > 0) {
-				opGenerator.addValue(proportion, op);
-			}
-		}
-
-		return opGenerator;
-	}
-
-	long nextId() {
-		long id;
-
-		if (idSelector instanceof ExponentialGenerator) {
-			do {
-				id = newIdGenerator.lastValue() - idSelector.nextValue().intValue();
-			} while (id < 0);
-		} else {
-			do {
-				id = idSelector.nextValue().intValue();
-			} while (id > newIdGenerator.lastValue());
-		}
-
-		return id;
-	}
-
-	/**
-	 * Do one insert operation. Because it will be called concurrently from multiple client threads,
-	 * this function must be thread safe. However, avoid synchronized, or the threads will block waiting
-	 * for each other, and it will be difficult to reach the target throughput. Ideally, this function would
-	 * have no side effects other than DB operations.
-	 */
-	@Override
-	public boolean doInsert(DB db, Object threadState) {
-		String key = buildKey(idGenerator.nextValue().intValue(), zeroPadding, orderedInserts);
-		HashMap<String, ByteIterator> values = createRandomValues();
+		String key = buildKey(id);
+		Map<String, ByteIterator> values = createRandomValues();
 
 		Map<String, Object> options = new HashMap<>();
 
@@ -486,15 +271,9 @@ public class CoreWorkload extends Workload {
 		return status != null && status.isOk();
 	}
 
-	/**
-	 * Do one transaction operation. Because it will be called concurrently from multiple client
-	 * threads, this function must be thread safe. However, avoid synchronized, or the threads will block waiting
-	 * for each other, and it will be difficult to reach the target throughput. Ideally, this function would
-	 * have no side effects other than DB operations.
-	 */
 	@Override
-	public boolean doTransaction(DB db, Object threadState) {
-		String operation = opGenerator.nextString();
+	public boolean doTransaction(DB db) {
+		String operation = nextOperation();
 
 		if (operation == null) {
 			return false;
@@ -519,26 +298,11 @@ public class CoreWorkload extends Workload {
 	}
 
 	public void doTransactionRead(DB db) {
-		// Choose a random key
-		String key = buildKey(nextId(), zeroPadding, orderedInserts);
+		long id = nextTransactionId();
 
-		Set<String> fields;
+		String key = buildKey(id);
 
-		if (readAllFields) {
-			if (readAllFieldsByName) {
-				fields = new HashSet<>(fieldNames);
-			} else {
-				fields = null;
-			}
-		} else {
-			fields = new HashSet<>();
-
-			// Read a random field
-			// TODO: make possible to read a random number of fields
-			String fieldName = fieldNames.get(fieldSelector.nextValue().intValue());
-
-			fields.add(fieldName);
-		}
+		Set<String> fields = new HashSet<>(fieldNames);
 
 		Map<String, Object> options = new HashMap<>();
 
@@ -592,15 +356,13 @@ public class CoreWorkload extends Workload {
 	}
 
 	public void doTransactionInsert(DB db) {
-		long id = newIdGenerator.nextValue();
+		long id = nextTransactionInsertId();
 
-		try {
-			String key = buildKey(id, zeroPadding, orderedInserts);
-			HashMap<String, ByteIterator> values = createRandomValues();
+		String key = buildKey(id);
+		Map<String, ByteIterator> values = createRandomValues();
 
-			//db.insert(table, key, values);
-		} finally {
-			newIdGenerator.acknowledge(id);
-		}
+		//db.insert(table, key, values);
+
+		transactionInsertIdGenerator.acknowledge(id);
 	}
 }

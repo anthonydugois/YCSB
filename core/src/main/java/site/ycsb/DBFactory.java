@@ -17,31 +17,19 @@
 
 package site.ycsb;
 
-import org.apache.htrace.core.Tracer;
-
-import java.util.Properties;
-
 /**
  * Creates a DB layer by dynamically classloading the specified DB class.
  */
 public final class DBFactory {
-	public static DB createDB(String dbName, Properties props, final Tracer tracer) throws UnknownDBException {
+	public static DB createDB(String dbName)
+			throws ClassNotFoundException,
+			InstantiationException,
+			IllegalAccessException {
 		ClassLoader classLoader = DBFactory.class.getClassLoader();
+		Class<?> dbClass = classLoader.loadClass(dbName);
 
-		DB db;
+		DB db = (DB) dbClass.newInstance();
 
-		try {
-			Class<?> dbclass = classLoader.loadClass(dbName);
-
-			db = (DB) dbclass.newInstance();
-		} catch (Exception e) {
-			e.printStackTrace();
-
-			return null;
-		}
-
-		db.setProperties(props);
-
-		return new DBWrapper(db, tracer);
+		return new DBWrapper(db);
 	}
 }

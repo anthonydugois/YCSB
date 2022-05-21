@@ -41,12 +41,12 @@ COMMANDS = {
     "load" : {
         "command"     : "-load",
         "description" : "Execute the load phase",
-        "main"        : "site.ycsb.Client",
+        "main"        : "site.ycsb.Application",
     },
     "run" : {
         "command"     : "-t",
         "description" : "Execute the transaction phase",
-        "main"        : "site.ycsb.Client",
+        "main"        : "site.ycsb.Application",
     },
 }
 
