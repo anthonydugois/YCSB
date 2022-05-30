@@ -79,10 +79,10 @@ fi
 # Determine YCSB command argument
 if [ "load" = "$1" ] ; then
   YCSB_COMMAND=-load
-  YCSB_CLASS=site.ycsb.Client
+  YCSB_CLASS=site.ycsb.Application
 elif [ "run" = "$1" ] ; then
   YCSB_COMMAND=-t
-  YCSB_CLASS=site.ycsb.Client
+  YCSB_CLASS=site.ycsb.Application
 elif [ "shell" = "$1" ] ; then
   YCSB_COMMAND=
   YCSB_CLASS=site.ycsb.CommandLine

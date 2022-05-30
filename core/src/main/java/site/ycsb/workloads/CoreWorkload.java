@@ -57,6 +57,14 @@ public class CoreWorkload extends Workload {
 
 		int minRowLength = WorkloadDescriptor.minRowLength();
 
+		List<Long> values = new ArrayList<>();
+
+		long cur = 1000;
+		for (int i = 0; i < 12; ++i) { // from 1 KB to 1024 KB
+			values.add(cur);
+			cur *= 2;
+		}
+
 		NumberGenerator rowLengthGenerator;
 
 		switch (rowLengthDistribution) {
@@ -67,14 +75,6 @@ public class CoreWorkload extends Workload {
 				rowLengthGenerator = new UniformLongGenerator(minRowLength, rowLength);
 				break;
 			case ZIPFIAN:
-				List<Long> values = new ArrayList<>();
-
-				long cur = 1000;
-				for (int i = 0; i < 12; ++i) { // from 1 KB to 1024 KB
-					values.add(cur);
-					cur *= 2;
-				}
-
 				rowLengthGenerator = new ListZipfianGenerator(values, 1.5);
 				break;
 			default:
