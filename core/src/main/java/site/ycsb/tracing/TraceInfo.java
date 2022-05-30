@@ -1,5 +1,9 @@
 package site.ycsb.tracing;
 
+import site.ycsb.measures.Exporter;
+import site.ycsb.measures.Exportable;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +13,10 @@ public class TraceInfo {
 	private final UUID id;
 
 	private final Map<String, Event> events = new HashMap<>();
+
+	private int responseSizeBytes;
+
+	private int compressedResponseSizeBytes;
 
 	public TraceInfo(UUID id) {
 		this.id = id;
@@ -22,11 +30,31 @@ public class TraceInfo {
 		return events;
 	}
 
-	public void registerEvent(String name, Event event) {
-		events.put(name, event);
+	public int getResponseSizeBytes() {
+		return responseSizeBytes;
 	}
 
-	public static class Event {
+	public void setResponseSizeBytes(int responseSizeBytes) {
+		this.responseSizeBytes = responseSizeBytes;
+	}
+
+	public int getCompressedResponseSizeBytes() {
+		return compressedResponseSizeBytes;
+	}
+
+	public void setCompressedResponseSizeBytes(int compressedResponseSizeBytes) {
+		this.compressedResponseSizeBytes = compressedResponseSizeBytes;
+	}
+
+	public void registerEvent(Event event) {
+		events.put(event.getName(), event);
+	}
+
+	public static class Event implements Exportable {
+		private final TraceInfo traceInfo;
+
+		private final String name;
+
 		private final InetSocketAddress source;
 
 		private final String thread;
@@ -35,11 +63,21 @@ public class TraceInfo {
 
 		private final int durationMicros;
 
-		public Event(InetSocketAddress source, String thread, long timestamp, int durationMicros) {
+		public Event(TraceInfo traceInfo, String name, InetSocketAddress source, String thread, long timestamp, int durationMicros) {
+			this.traceInfo = traceInfo;
+			this.name = name;
 			this.source = source;
 			this.thread = thread;
 			this.timestamp = timestamp;
 			this.durationMicros = durationMicros;
+		}
+
+		public TraceInfo getTraceInfo() {
+			return traceInfo;
+		}
+
+		public String getName() {
+			return name;
 		}
 
 		public InetSocketAddress getSource() {
@@ -56,6 +94,18 @@ public class TraceInfo {
 
 		public int getDurationMicros() {
 			return durationMicros;
+		}
+
+		@Override
+		public void export(Exporter exporter) throws IOException {
+			exporter.write(
+					traceInfo.getId() + "," +
+							traceInfo.getResponseSizeBytes() + "," +
+							name + "," +
+							source + "," +
+							thread + "," +
+							durationMicros
+			);
 		}
 	}
 }

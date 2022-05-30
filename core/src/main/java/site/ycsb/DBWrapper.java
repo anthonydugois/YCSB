@@ -149,12 +149,9 @@ public class DBWrapper extends DB {
 		Collection<TraceInfo> traceInfos = db.traces();
 
 		for (TraceInfo traceInfo : traceInfos) {
-			for (Map.Entry<String, TraceInfo.Event> entry : traceInfo.getEvents().entrySet()) {
-				String name = entry.getKey();
-				TraceInfo.Event event = entry.getValue();
-
+			for (TraceInfo.Event event : traceInfo.getEvents().values()) {
 				try {
-					measures.getOrCreate(name, Measure.Type.RAW).measure(event.getDurationMicros());
+					measures.getOrCreate("TRACING:EVENTS:RAW", Measure.Type.RAW).measure(event);
 				} catch (MeasureException exception) {
 					exception.printStackTrace();
 				}

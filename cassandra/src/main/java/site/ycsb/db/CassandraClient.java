@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class CassandraClient extends DB {
-
 	private static CqlSession session;
 
 	public static final String PARTITION_KEY = "id";
@@ -28,37 +27,14 @@ public class CassandraClient extends DB {
 	public static final boolean OPTION_TRACING_DEFAULT = false;
 
 	private static final ConcurrentMap<Set<String>, PreparedStatement> readStmts = new ConcurrentHashMap<>();
-	// private static final ConcurrentMap<Set<String>, PreparedStatement> scanStmts = new ConcurrentHashMap<>();
 	private static final ConcurrentMap<Set<String>, PreparedStatement> insertStmts = new ConcurrentHashMap<>();
-	// private static final ConcurrentMap<Set<String>, PreparedStatement> updateStmts = new ConcurrentHashMap<>();
 
 	private static final AtomicReference<PreparedStatement> readAllStmt = new AtomicReference<>();
-	// private static final AtomicReference<PreparedStatement> scanAllStmt = new AtomicReference<>();
-	// private static final AtomicReference<PreparedStatement> deleteStmt = new AtomicReference<>();
-
-	//private static final AtomicInteger INIT_COUNT = new AtomicInteger(0);
 
 	private final Set<ExecutionInfo> executionInfos = new HashSet<>();
 
 	@Override
 	public void init() throws DBException {
-		// Keep track of number of calls to init (for later cleanup)
-		/*INIT_COUNT.incrementAndGet();
-
-		// Synchronized so that we only have a single cluster/session instance for all the threads
-		synchronized (INIT_COUNT) {
-			// Check if the cluster has already been initialized
-			if (session != null) {
-				return;
-			}
-
-			try {
-				session = CqlSession.builder().build();
-			} catch (Exception exception) {
-				throw new DBException(exception);
-			}
-		}*/
-
 		// Check if the cluster has already been initialized
 		if (session != null) {
 			return;
@@ -73,29 +49,6 @@ public class CassandraClient extends DB {
 
 	@Override
 	public void cleanup() throws DBException {
-		/*synchronized (INIT_COUNT) {
-			final int count = INIT_COUNT.decrementAndGet();
-
-			if (count <= 0) {
-				readStmts.clear();
-				// scanStmts.clear();
-				insertStmts.clear();
-				// updateStmts.clear();
-
-				readAllStmt.set(null);
-				// scanAllStmt.set(null);
-				// deleteStmt.set(null);
-
-				session.close();
-				session = null;
-			}
-
-			if (count < 0) {
-				// This should never happen
-				throw new DBException("INIT_COUNT is negative: " + count);
-			}
-		}*/
-
 		if (session == null) {
 			return;
 		}
@@ -242,16 +195,23 @@ public class CassandraClient extends DB {
 		for (ExecutionInfo executionInfo : executionInfos) {
 			TraceInfo traceInfo = new TraceInfo(executionInfo.getTracingId());
 
+			traceInfo.setResponseSizeBytes(executionInfo.getResponseSizeInBytes());
+			traceInfo.setCompressedResponseSizeBytes(executionInfo.getCompressedResponseSizeInBytes());
+
 			// Warning; this is expensive (blocking request towards Cassandra)
 			QueryTrace queryTrace = executionInfo.getQueryTrace();
 
 			for (TraceEvent event : queryTrace.getEvents()) {
-				traceInfo.registerEvent(event.getActivity(), new TraceInfo.Event(
+				TraceInfo.Event traceInfoEvent = new TraceInfo.Event(
+						traceInfo,
+						event.getActivity(),
 						event.getSourceAddress(),
 						event.getThreadName(),
 						event.getTimestamp(),
 						event.getSourceElapsedMicros()
-				));
+				);
+
+				traceInfo.registerEvent(traceInfoEvent);
 			}
 
 			traces.add(traceInfo);

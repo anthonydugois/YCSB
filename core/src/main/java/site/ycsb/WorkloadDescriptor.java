@@ -83,18 +83,18 @@ public class WorkloadDescriptor {
 		return Integer.parseInt(props.getProperty(THREAD_COUNT_PROPERTY, THREAD_COUNT_PROPERTY_DEFAULT));
 	}
 
-	public static final String INSERT_COUNT_PROPERTY = "insertcount";
-	public static final String INSERT_COUNT_PROPERTY_DEFAULT = "0";
-
-	public static long insertCount() {
-		return Long.parseLong(props.getProperty(INSERT_COUNT_PROPERTY, INSERT_COUNT_PROPERTY_DEFAULT));
-	}
-
 	public static final String INSERT_START_PROPERTY = "insertstart";
 	public static final String INSERT_START_PROPERTY_DEFAULT = "0";
 
 	public static long insertStart() {
 		return Long.parseLong(props.getProperty(INSERT_START_PROPERTY, INSERT_START_PROPERTY_DEFAULT));
+	}
+
+	public static final String INSERT_COUNT_PROPERTY = "insertcount";
+	public static final String INSERT_COUNT_PROPERTY_DEFAULT = "0";
+
+	public static long insertCount() {
+		return Long.parseLong(props.getProperty(INSERT_COUNT_PROPERTY, INSERT_COUNT_PROPERTY_DEFAULT));
 	}
 
 	public static final String TARGET_PROPERTY = "target";

@@ -1,7 +1,6 @@
 package site.ycsb.measures;
 
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.Recorder;
+import site.ycsb.tracing.LatencyHistogram;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -13,9 +12,9 @@ public abstract class Measure {
 		HISTOGRAM
 	}
 
-	private final String name;
+	protected final String name;
 
-	private final Type type;
+	protected final Type type;
 
 	public Measure(String name, Type type) {
 		this.name = name;
@@ -46,7 +45,7 @@ public abstract class Measure {
 	}
 
 	public static class RawMeasure extends Measure {
-		private final List<Object> values = new LinkedList<>();
+		private final List<Exportable> values = new LinkedList<>();
 
 		public RawMeasure(String name) {
 			super(name, Type.RAW);
@@ -54,32 +53,27 @@ public abstract class Measure {
 
 		@Override
 		public void measure(Object value) {
-			values.add(value);
+			values.add((Exportable) value);
 		}
 
 		@Override
 		public void export(Exporter exporter) {
 			try {
-				for (Object value : values) {
-					exporter.write(format("", value, " us"));
+				exporter.write("");
+				exporter.write(name);
+				exporter.write("");
+
+				for (Exportable value : values) {
+					value.export(exporter);
 				}
 			} catch (IOException exception) {
 				exception.printStackTrace();
 			}
 		}
-
-		private String format(String prefix, Object value, String suffix) {
-			return "[" + getName() + "] " + prefix + value + suffix;
-		}
 	}
 
 	public static class HistogramMeasure extends Measure {
-		private static final int DIGITS = 3;
-
-		private final Recorder recorder = new Recorder(DIGITS);
-
-		private Histogram currentIntervalHistogram = null;
-		private Histogram histogram = null;
+		private final LatencyHistogram histogram = new LatencyHistogram();
 
 		public HistogramMeasure(String name) {
 			super(name, Type.HISTOGRAM);
@@ -87,49 +81,22 @@ public abstract class Measure {
 
 		@Override
 		public void measure(Object value) {
-			recorder.recordValue((long) value);
+			histogram.record((long) value);
 		}
 
 		@Override
 		public void export(Exporter exporter) {
-			saveHistogram();
+			histogram.save();
 
 			try {
-				exporter.write(format("", histogram.getTotalCount(), " operations"));
-				exporter.write(format("avg : ", histogram.getMean(), " us"));
-				exporter.write(format("min : ", histogram.getMinValue(), " us"));
-				exporter.write(format("max : ", histogram.getMaxValue(), " us"));
-				exporter.write(format("50p : ", histogram.getValueAtPercentile(50), " us"));
-				exporter.write(format("75p : ", histogram.getValueAtPercentile(75), " us"));
-				exporter.write(format("95p : ", histogram.getValueAtPercentile(95), " us"));
-				exporter.write(format("99p : ", histogram.getValueAtPercentile(99), " us"));
-				exporter.write(format("99.9p : ", histogram.getValueAtPercentile(99.9), " us"));
-				exporter.write(format("99.99p : ", histogram.getValueAtPercentile(99.99), " us"));
+				exporter.write("");
+				exporter.write(name);
+				exporter.write("");
+
+				histogram.export(exporter);
 			} catch (IOException exception) {
 				exception.printStackTrace();
 			}
-		}
-
-		private String format(String prefix, Object value, String suffix) {
-			return "[" + getName() + "] " + prefix + value + suffix;
-		}
-
-		public void saveHistogram() {
-			currentIntervalHistogram = recorder.getIntervalHistogram();
-
-			if (histogram == null) {
-				histogram = currentIntervalHistogram;
-			} else {
-				histogram.add(currentIntervalHistogram);
-			}
-		}
-
-		public Histogram getIntervalHistogram() {
-			return currentIntervalHistogram;
-		}
-
-		public Histogram getHistogram() {
-			return histogram;
 		}
 	}
 }

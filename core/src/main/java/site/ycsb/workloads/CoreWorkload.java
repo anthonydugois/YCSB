@@ -66,6 +66,17 @@ public class CoreWorkload extends Workload {
 			case UNIFORM:
 				rowLengthGenerator = new UniformLongGenerator(minRowLength, rowLength);
 				break;
+			case ZIPFIAN:
+				List<Long> values = new ArrayList<>();
+
+				long cur = 1000;
+				for (int i = 0; i < 12; ++i) { // from 1 KB to 1024 KB
+					values.add(cur);
+					cur *= 2;
+				}
+
+				rowLengthGenerator = new ListZipfianGenerator(values, 1.5);
+				break;
 			default:
 				throw new WorkloadException();
 		}
@@ -89,7 +100,7 @@ public class CoreWorkload extends Workload {
 		}
 
 		long insertStart = WorkloadDescriptor.insertStart();
-		long insertCount = WorkloadDescriptor.insertCount();
+		long insertCount = WorkloadDescriptor.insertCount() > 0 ? WorkloadDescriptor.insertCount() : WorkloadDescriptor.recordCount() - insertStart;
 		long insertEnd = insertStart + insertCount;
 
 		if (recordCount < insertEnd) {

@@ -1,18 +1,17 @@
-recordcount=1000
-operationcount=10000
+recordcount=300000000
+operationcount=10000000
 
 workload=site.ycsb.workloads.CoreWorkload
 db=site.ycsb.db.CassandraClient
 exporter=site.ycsb.measures.Exporter.ConsoleExporter
 
 table=tbl
-rowlengthdistribution=constant
-rowlength=1000
+rowlengthdistribution=zipfian
 fieldprefix=field
 fieldcount=10
 
 readproportion=1
 insertproportion=0
-traceproportion=0.01
+traceproportion=0.001
 
 requestdistribution=zipfian
