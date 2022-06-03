@@ -60,6 +60,12 @@ public class DBWrapper extends DB {
 			long latencyMicros = (endTimeNanos - startTimeNanos) / 1000;
 
 			measures.getOrCreate("READ:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+
+			if (status.isOk()) {
+				measures.getOrCreate("READ:SUCCESS:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+			} else {
+				measures.getOrCreate("READ:ERROR:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+			}
 		} catch (MeasureException exception) {
 			exception.printStackTrace();
 		}
@@ -118,6 +124,12 @@ public class DBWrapper extends DB {
 			long latencyMicros = (endTimeNanos - startTimeNanos) / 1000;
 
 			measures.getOrCreate("INSERT:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+
+			if (status.isOk()) {
+				measures.getOrCreate("INSERT:SUCCESS:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+			} else {
+				measures.getOrCreate("INSERT:ERROR:LATENCY:HISTOGRAM", Measure.Type.HISTOGRAM).measure(latencyMicros);
+			}
 		} catch (MeasureException exception) {
 			exception.printStackTrace();
 		}
