@@ -39,6 +39,7 @@ public class LatencyHistogram implements Exportable {
 
 	@Override
 	public void export(Exporter exporter) throws IOException {
+		exporter.write("latency,count," + histogram.getTotalCount());
 		exporter.write("latency,avg," + histogram.getMean());
 		exporter.write("latency,min," + histogram.getMinValue());
 		exporter.write("latency,max," + histogram.getMaxValue());
