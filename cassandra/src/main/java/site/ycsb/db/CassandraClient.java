@@ -121,6 +121,7 @@ public class CassandraClient extends DB {
 
 			return Status.OK;
 		} catch (Exception exception) {
+			exception.printStackTrace();
 			return Status.ERROR;
 		}
 	}
@@ -179,6 +180,7 @@ public class CassandraClient extends DB {
 
 			return Status.OK;
 		} catch (Exception exception) {
+			exception.printStackTrace();
 			return Status.ERROR;
 		}
 	}

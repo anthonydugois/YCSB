@@ -277,7 +277,26 @@ public class CoreWorkload extends Workload {
 
 		options.put("profile", "load");
 
-		Status status = db.insert(table, key, values, options);
+		Status status;
+		int retries = 0;
+
+		do {
+			status = db.insert(table, key, values, options);
+
+			if (status != null && status.isOk()) {
+				break;
+			}
+
+			if (++retries <= 5) {
+				try {
+					Thread.sleep((int) (1000 * 3 * (0.8 + 0.4 * Math.random())));
+				} catch (InterruptedException exception) {
+					break;
+				}
+			} else {
+				break;
+			}
+		} while (true);
 
 		return status != null && status.isOk();
 	}
