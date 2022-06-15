@@ -1,5 +1,5 @@
-recordcount=300000000
-operationcount=10000000
+recordcount=1000
+operationcount=1000
 
 workload=site.ycsb.workloads.CoreWorkload
 db=site.ycsb.db.CassandraClient
@@ -12,6 +12,6 @@ fieldcount=10
 
 readproportion=1
 insertproportion=0
-traceproportion=0.001
+traceproportion=0.1
 
 requestdistribution=zipfian

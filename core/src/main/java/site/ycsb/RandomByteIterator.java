@@ -37,6 +37,10 @@ public class RandomByteIterator extends ByteIterator {
 		this.off = 0;
 	}
 
+	public long size() {
+		return len;
+	}
+
 	@Override
 	public boolean hasNext() {
 		return (off + bufOff) < len;

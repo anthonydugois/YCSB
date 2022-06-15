@@ -21,6 +21,9 @@ import site.ycsb.*;
 import site.ycsb.generator.*;
 import site.ycsb.generator.UniformLongGenerator;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -49,6 +52,8 @@ public class CoreWorkload extends Workload {
 	private int zeroPadding;
 
 	private double traceProportion;
+
+	private BufferedWriter writer;
 
 	private NumberGenerator getRowLengthGenerator() throws WorkloadException {
 		WorkloadDescriptor.Distribution rowLengthDistribution = WorkloadDescriptor.rowLengthDistribution();
@@ -204,6 +209,21 @@ public class CoreWorkload extends Workload {
 		zeroPadding = WorkloadDescriptor.zeroPadding();
 
 		traceProportion = WorkloadDescriptor.traceProportion();
+
+		try {
+			writer = new BufferedWriter(new FileWriter("csv/keymap.csv", true));
+		} catch (Exception exception) {
+			exception.printStackTrace();
+		}
+	}
+
+	@Override
+	public void cleanup() throws WorkloadException {
+		try {
+			writer.close();
+		} catch (Exception exception) {
+			exception.printStackTrace();
+		}
 	}
 
 	private Map<String, ByteIterator> createRandomValues() {
@@ -297,6 +317,17 @@ public class CoreWorkload extends Workload {
 				break;
 			}
 		} while (true);
+
+		long size = 0;
+		for (ByteIterator value : values.values()) {
+			size += ((RandomByteIterator) value).size();
+		}
+
+		try {
+			writer.append(key).append(",").append(String.valueOf(size)).append("\n");
+		} catch (Exception exception) {
+			exception.printStackTrace();
+		}
 
 		return status != null && status.isOk();
 	}
