@@ -54,14 +54,14 @@ public class LatencyHistogram implements Exportable {
 			exporter.write("latency,p" + perc + "," + histogram.getValueAtPercentile(perc));
 		}
 
-		for (int p = 0; p < 10; p++) {
-			double perc = 99.0 + p * 0.1;
+		for (int p = 1; p < 10; p++) {
+			double perc = Math.round((99.0 + p * 0.1) * 100.0) / 100.0;
 
 			exporter.write("latency,p" + perc + "," + histogram.getValueAtPercentile(perc));
 		}
 
-		for (int p = 0; p < 10; p++) {
-			double perc = 99.90 + p * 0.01;
+		for (int p = 1; p < 10; p++) {
+			double perc = Math.round((99.90 + p * 0.01) * 100.0) / 100.0;
 
 			exporter.write("latency,p" + perc + "," + histogram.getValueAtPercentile(perc));
 		}
