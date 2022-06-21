@@ -43,11 +43,21 @@ public class LatencyHistogram implements Exportable {
 		exporter.write("latency,avg," + histogram.getMean());
 		exporter.write("latency,min," + histogram.getMinValue());
 		exporter.write("latency,max," + histogram.getMaxValue());
-		exporter.write("latency,50p," + histogram.getValueAtPercentile(50));
-		exporter.write("latency,75p," + histogram.getValueAtPercentile(75));
-		exporter.write("latency,95p," + histogram.getValueAtPercentile(95));
-		exporter.write("latency,99p," + histogram.getValueAtPercentile(99));
-		exporter.write("latency,99.9p," + histogram.getValueAtPercentile(99.9));
-		exporter.write("latency,99.99p," + histogram.getValueAtPercentile(99.99));
+
+		for (double p = 0; p < 90; p += 5) {
+			exporter.write("latency," + p + "p," + histogram.getValueAtPercentile(p));
+		}
+
+		for (double p = 90; p < 99; p += 1) {
+			exporter.write("latency," + p + "p," + histogram.getValueAtPercentile(p));
+		}
+
+		for (double p = 99; p < 99.9; p += 0.1) {
+			exporter.write("latency," + p + "p," + histogram.getValueAtPercentile(p));
+		}
+
+		for (double p = 99.9; p <= 100; p += 0.01) {
+			exporter.write("latency," + p + "p," + histogram.getValueAtPercentile(p));
+		}
 	}
 }
