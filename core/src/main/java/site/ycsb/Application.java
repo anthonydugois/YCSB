@@ -186,17 +186,19 @@ public final class Application {
 
 		double throughput = 1000.0 * opCount / runtime;
 
-		exporter.write("[TOTAL] " + opCount + " operations");
-		exporter.write("[TOTAL] runtime : " + runtime + " ms");
-		exporter.write("[TOTAL] throughput : " + throughput + " ops/s");
+		exporter.write("TOTAL");
+		exporter.write("");
+		exporter.write("operations,count," + opCount);
+		exporter.write("operations,runtime," + runtime);
+		exporter.write("operations,throughput," + throughput);
 
-		for (Client client : clients) {
+		/* for (Client client : clients) {
 			double clientThroughput = 1000.0 * client.getOpsDone() / client.getRuntime();
 
 			exporter.write("[THREAD " + client.getId() + "] " + client.getOpsDone() + " operations");
 			exporter.write("[THREAD " + client.getId() + "] " + client.getRuntime() + " ms");
 			exporter.write("[THREAD " + client.getId() + "] " + clientThroughput + " ops/s");
-		}
+		} */
 
 		Measures.instance.export(exporter);
 
