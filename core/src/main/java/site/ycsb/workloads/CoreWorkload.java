@@ -323,8 +323,10 @@ public class CoreWorkload extends Workload {
 			size += ((RandomByteIterator) value).size();
 		}
 
+		String line = key + "," + size + "\n";
+
 		try {
-			writer.append(key).append(",").append(String.valueOf(size)).append("\n");
+			writer.append(line);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 		}
